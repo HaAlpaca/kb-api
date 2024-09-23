@@ -1,0 +1,13 @@
+{
+  "name": "trello-api",
+  "version": "1.0.0",
+  "description": "alpaca mern stack",
+  "main": "src/server.js",
+  "author": "haalpaca",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
