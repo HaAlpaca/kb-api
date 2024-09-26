@@ -8,9 +8,7 @@ const createNew = async (req, res, next) => {
   try {
     // chi dinh abortEarly de th co nhieu loi tra ve tat ca loi
     await correctCondition.validateAsync(req.body, { abortEarly: false })
-    res
-      .status(StatusCodes.CREATED)
-      .json({ message: 'POST from Validation: API create new board' })
+    next()
   } catch (error) {
     res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
       errors: new Error(error).message
