@@ -5,7 +5,7 @@
   "author": "Haalpaca",
   "description": "learn course from trungquandev https://youtube.com/@trungquandev",
   "engines": {
-    "node": "18.16.0"
+    "node": "16.20.2" 
   },
   "scripts": {
     "lint": "eslint src --ext js --report-unused-disable-directives --max-warnings 0",

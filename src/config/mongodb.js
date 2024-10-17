@@ -6,8 +6,8 @@ let kanbanDatabaseInstance = null
 const mongoClientInstance = new MongoClient(env.MONGODB_URI, {
   serverApi: {
     version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true
+    strict: false,
+    deprecationErrors: false
   }
 })
 export const CONNECT_DB = async () => {
