@@ -87,14 +87,30 @@ const getDetails = async id => {
     throw new Error(error)
   }
 }
+// push 1 gia tri column id vao mang columnOrderIds
+const pushColumnOrderIds = async column => {
+  try {
+    const result = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(column.boardId) },
+        { $push: { columnOrderIds: new ObjectId(column._id) } },
+        { returnDocument: 'after' }
+      )
+    return result.value
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const boardModel = {
   BOARD_COLLECTION_NAME,
   BOARD_COLLECTION_SCHEMA,
   createNew,
   findOneById,
-  getDetails
+  getDetails,
+  pushColumnOrderIds
 }
-
 
 //board 6710c1dea34456a8d94373bc
 //column 6710c5a9a2f7c59a026cddf6
