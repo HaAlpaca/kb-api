@@ -13,4 +13,10 @@ Router.route('/:id')
   .get(boardController.getDetails)
   .put(boardValidation.update, boardController.update) // update
 
+// ho tro di chuyen card giua cac column
+Router.route('/supports/moving_card').put(
+  boardValidation.moveCardToDifferentColumn,
+  boardController.moveCardToDifferentColumn
+) // update
+
 export const boardRoutes = Router
