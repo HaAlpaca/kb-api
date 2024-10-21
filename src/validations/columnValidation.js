@@ -20,6 +20,7 @@ const createNew = async (req, res, next) => {
     )
   }
 }
+
 const update = async (req, res, next) => {
   // khong dung required trong update
   const correctCondition = Joi.object({
@@ -45,7 +46,24 @@ const update = async (req, res, next) => {
   }
 }
 
+const deleteItem = async (req, res, next) => {
+  // khong dung required trong update
+  const correctCondition = Joi.object({
+    id: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  })
+  try {
+    // chi dinh abortEarly de th co nhieu error tra ve tat ca loi
+    await correctCondition.validateAsync(req.params)
+    next()
+  } catch (error) {
+    next(
+      new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message)
+    )
+  }
+}
+
 export const columnValidation = {
   createNew,
-  update
+  update,
+  deleteItem
 }
