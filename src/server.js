@@ -17,13 +17,21 @@ const START_SERVER = () => {
   app.use('/v1', APIs_v1)
   //middleware xu li loi tap trung
   app.use(errorHandlingMiddleware)
-
-  app.listen(env.APP_PORT, env.APP_HOST, () => {
-    // eslint-disable-next-line no-console
-    console.log(
-      `Hi ${env.AUTHOR}, server is running successfully at Host: http://${env.APP_HOST}:${env.APP_PORT}/`
-    )
-  })
+  if (env.BUILD_MODE === 'production') {
+    app.listen(process.env.PORT, () => {
+      // eslint-disable-next-line no-console
+      console.log(
+        `PRODUCTION: Hi ${env.AUTHOR}, server is running successfully at PORT: ${process.env.PORT}`
+      )
+    })
+  } else {
+    app.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
+      // eslint-disable-next-line no-console
+      console.log(
+        `DEV: Hi ${env.AUTHOR}, server is running successfully at Host: http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}/`
+      )
+    })
+  }
 
   exitHook(() => {
     console.log('Server is shutting down...')
