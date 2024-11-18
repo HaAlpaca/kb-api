@@ -5,4 +5,4 @@ const Router = express.Router()
 
 Router.route('/').post(cardValidation.createNew, cardController.createNew)
 
-export const cardRoutes = Router
+export const cardRoute = Router

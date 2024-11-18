@@ -19,4 +19,4 @@ Router.route('/supports/moving_card').put(
   boardController.moveCardToDifferentColumn
 ) // update
 
-export const boardRoutes = Router
+export const boardRoute = Router
