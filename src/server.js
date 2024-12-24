@@ -7,9 +7,18 @@ import cors from 'cors'
 import { env } from '~/config/environment'
 import { APIs_v1 } from '~/routes/v1'
 import { errorHandlingMiddleware } from './middlewares/errorHandlingMiddleware'
+import cookieParser from 'cookie-parser'
 const START_SERVER = () => {
   const app = express()
-
+  // fix 410 (from disk cache)
+  // https://stackoverflow.com/questions/22632593/how-to-disable-webpage-caching-in-expressjs-nodejs/53240717#53240717
+  app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store')
+    next()
+  })
+  //cau hinh cookie parser
+  app.use(cookieParser())
+  //cau hinh cors
   app.use(cors(corsOptions))
   // enable req.body json data
   app.use(express.json())
