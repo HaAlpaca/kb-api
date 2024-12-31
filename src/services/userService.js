@@ -135,9 +135,48 @@ const refreshToken = async clientRefreshToken => {
   }
 }
 
+const update = async (userId, reqBody) => {
+  try {
+    const existUser = await userModel.findOneById(userId)
+    if (!existUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found')
+    }
+    if (!existUser.isActive)
+      throw new ApiError(
+        StatusCodes.NOT_ACCEPTABLE,
+        'Your account is not active!'
+      )
+
+    let updatedUser = {}
+    // change password
+    if (reqBody.current_password && reqBody.new_password) {
+      // check current password
+      if (!bcryptjs.compareSync(reqBody.current_password, existUser.password)) {
+        throw new ApiError(
+          StatusCodes.NOT_ACCEPTABLE,
+          'Your current password is incorrect!'
+        )
+      }
+      // update password
+
+      updatedUser = await userModel.update(userId, {
+        password: bcryptjs.hashSync(reqBody.new_password, 8)
+      })
+    } else {
+      // update thong tin chung
+      updatedUser = await userModel.update(userId, reqBody)
+    }
+
+    return pickUser(updatedUser)
+  } catch (error) {
+    throw error
+  }
+}
+
 export const userService = {
   createNew,
   verifyAccount,
   login,
-  refreshToken
+  refreshToken,
+  update
 }
