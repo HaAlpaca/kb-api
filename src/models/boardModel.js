@@ -5,6 +5,7 @@ import { BOARD_TYPES } from '~/utils/constants'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { columnModel } from './columnModel'
 import { cardModel } from './cardModel'
+import { pageSkipValue } from '~/utils/algorithms'
 // Define Collection (name & schema)
 const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({
@@ -16,6 +17,14 @@ const BOARD_COLLECTION_SCHEMA = Joi.object({
 
   // Lưu ý các item trong mảng columnOrderIds là ObjectId nên cần thêm pattern cho chuẩn nhé, (lúc quay video số 57 mình quên nhưng sang đầu video số 58 sẽ có nhắc lại về cái này.)
   columnOrderIds: Joi.array()
+    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
+    .default([]),
+  // Admin cua board
+  ownerIds: Joi.array()
+    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
+    .default([]),
+  // member cua board
+  memberIds: Joi.array()
     .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
     .default([]),
 
@@ -144,6 +153,57 @@ const pullColumnOrderIds = async column => {
   }
 }
 
+const getBoards = async (userId, page, itemPerPage) => {
+  try {
+    //
+    const queryCondition = [
+      // dieu kien 1 => board chua bi xoa
+      { _destroy: false },
+      // userId phai la owner id va user id
+      {
+        $or: [
+          { ownerIds: { $all: [new ObjectId(userId)] } },
+          { memberIds: { $all: [new ObjectId(userId)] } }
+        ]
+      }
+    ]
+
+    const query = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .aggregate(
+        [
+          { $match: { $and: queryCondition } },
+          // sort : sap xep theo ten a-z (theo chuan ASCII nen B se dung truoc a)
+          { $sort: { title: 1 } },
+          {
+            $facet: {
+              // luồng thu nhat: query board
+              queryBoards: [
+                { $skip: pageSkipValue(page, itemPerPage) }, // bo qua so luồng bang ghi page trc do},
+                { $limit: itemPerPage } // gioi han toi da du lieu tra ve
+              ],
+              // query dem tong so luong bang ghi board
+              querryTotalBoards: [{ $count: 'countedAllBoards' }]
+            }
+          }
+        ],
+        {
+          collation: { locale: 'en' }
+          // https://www.mongodb.com/docs/v6.0/reference/collation/#std-label-collation-document-fields
+        }
+      )
+      .toArray()
+    // console.log('query: ', query)
+    const res = query[0]
+    return {
+      boards: res.queryBoards || [],
+      totalBoard: res.querryTotalBoards[0]?.countedAllBoards || 0
+    }
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const boardModel = {
   BOARD_COLLECTION_NAME,
   BOARD_COLLECTION_SCHEMA,
@@ -152,7 +212,8 @@ export const boardModel = {
   getDetails,
   pushColumnOrderIds,
   update,
-  pullColumnOrderIds
+  pullColumnOrderIds,
+  getBoards
 }
 
 //board 6710c1dea34456a8d94373bc

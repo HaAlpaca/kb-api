@@ -1,13 +1,10 @@
 import express from 'express'
-import { StatusCodes } from 'http-status-codes'
 import { boardValidation } from '~/validations/boardValidation'
 import { boardController } from '~/controllers/boardController'
 const Router = express.Router()
 import { authMiddleware } from '~/middlewares/authMiddleware'
 Router.route('/')
-  .get(authMiddleware.isAuthorize, (req, res) => {
-    res.status(StatusCodes.OK).json({ message: 'GET: API get list board' })
-  })
+  .get(authMiddleware.isAuthorize, boardController.getBoards)
   .post(
     authMiddleware.isAuthorize,
     boardValidation.createNew,

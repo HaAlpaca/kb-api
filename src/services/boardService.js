@@ -7,6 +7,7 @@ import { cloneDeep } from 'lodash'
 import { cardModel } from '~/models/cardModel'
 
 import { columnModel } from '~/models/columnModel'
+import { DEFAULT_ITEM_PER_PAGE, DEFAULT_PAGE } from '~/utils/constants'
 const createNew = async reqBody => {
   try {
     // xu li tuy dac thu
@@ -47,6 +48,7 @@ const getDetails = async boardId => {
     throw error
   }
 }
+
 const update = async (boardId, reqBody) => {
   try {
     const updateData = {
@@ -83,9 +85,25 @@ const moveCardToDifferentColumn = async reqBody => {
   }
 }
 
+const getBoards = async (userId, page, itemPerPage) => {
+  try {
+    if (!page) page = DEFAULT_PAGE
+    if (!itemPerPage) itemPerPage = DEFAULT_ITEM_PER_PAGE
+    const results = await boardModel.getBoards(
+      userId,
+      parseInt(page, 10),
+      parseInt(itemPerPage, 10)
+    )
+    return results
+  } catch (error) {
+    throw error
+  }
+}
+
 export const boardService = {
   createNew,
   getDetails,
   update,
-  moveCardToDifferentColumn
+  moveCardToDifferentColumn,
+  getBoards
 }
