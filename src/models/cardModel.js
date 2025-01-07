@@ -109,6 +109,24 @@ const deleteManyByColumnId = async columnId => {
     throw new Error(error)
   }
 }
+// đẩy luôn vào đẩu mảng để được push vào array => comment mới luôn lên đầu , dễ đọc
+// do mongodb không có unshift nên phải dùng ntn
+// https://www.mongodb.com/docs/manual/reference/operator/update/position/
+// https://stackoverflow.com/questions/7936019/how-do-i-add-a-value-to-the-top-of-an-array-in-mongodb/25732817#25732817
+const unshiftNewComment = async (cardId, commentData) => {
+  try {
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(cardId) },
+        { $push: { comments: { $each: [commentData], $position: 0 } } },
+        { returnDocument: 'after' }
+      )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
 
 export const cardModel = {
   CARD_COLLECTION_NAME,
@@ -116,5 +134,6 @@ export const cardModel = {
   createNew,
   findOneById,
   update,
-  deleteManyByColumnId
+  deleteManyByColumnId,
+  unshiftNewComment
 }

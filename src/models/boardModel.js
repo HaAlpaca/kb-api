@@ -107,7 +107,7 @@ const getDetails = async (userId, boardId) => {
             as: 'owners',
             // pipeline: để xử lí 1 hoặc nhiều luồng 1 lúc
             //  $project chỉ định vài field không muốn lấy bằng cách gán = 0
-            pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
+            pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
           }
         },
         {
@@ -116,7 +116,7 @@ const getDetails = async (userId, boardId) => {
             localField: 'memberIds',
             foreignField: '_id',
             as: 'members',
-            pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
+            pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
           }
         }
       ])
@@ -135,6 +135,20 @@ const pushColumnOrderIds = async column => {
       .findOneAndUpdate(
         { _id: new ObjectId(column.boardId) },
         { $push: { columnOrderIds: new ObjectId(column._id) } },
+        { returnDocument: 'after' }
+      )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+const pushMemberIds = async (boardId, userId) => {
+  try {
+    const result = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(boardId) },
+        { $push: { memberIds: new ObjectId(userId) } },
         { returnDocument: 'after' }
       )
     return result
@@ -242,7 +256,8 @@ export const boardModel = {
   pushColumnOrderIds,
   update,
   pullColumnOrderIds,
-  getBoards
+  getBoards,
+  pushMemberIds
 }
 
 //board 6710c1dea34456a8d94373bc
