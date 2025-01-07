@@ -1,7 +1,13 @@
 import Joi from 'joi'
-import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
+import {
+  EMAIL_RULE,
+  EMAIL_RULE_MESSAGE,
+  OBJECT_ID_RULE,
+  OBJECT_ID_RULE_MESSAGE
+} from '~/utils/validators'
 import { GET_DB } from '~/config/mongodb'
 import { ObjectId } from 'mongodb'
+import { CARD_MEMBER_ACTION } from '~/utils/constants'
 // Define Collection (name & schema)
 const CARD_COLLECTION_NAME = 'cards'
 const CARD_COLLECTION_SCHEMA = Joi.object({
@@ -17,6 +23,23 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
   title: Joi.string().required().min(3).max(50).trim().strict(),
   description: Joi.string().optional(),
 
+  cover: Joi.string().default(null),
+  memberIds: Joi.array()
+    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
+    .default([]),
+  comments: Joi.array()
+    .items({
+      userId: Joi.string()
+        .pattern(OBJECT_ID_RULE)
+        .message(OBJECT_ID_RULE_MESSAGE),
+      userEmail: Joi.string().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE),
+      userAvatar: Joi.string(),
+      userDisplayName: Joi.string(),
+      content: Joi.string(),
+      // do kieu embedded vao 1 bang ghi thay vi dung nhieu bang, nen ta dung $push nen khong the set Date.now() duoc
+      commentedAt: Joi.date().timestamp()
+    })
+    .default([]),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
   _destroy: Joi.boolean().default(false)
@@ -87,6 +110,53 @@ const deleteManyByColumnId = async columnId => {
     throw new Error(error)
   }
 }
+// đẩy luôn vào đẩu mảng để được push vào array => comment mới luôn lên đầu , dễ đọc
+// do mongodb không có unshift nên phải dùng ntn
+// https://www.mongodb.com/docs/manual/reference/operator/update/position/
+// https://stackoverflow.com/questions/7936019/how-do-i-add-a-value-to-the-top-of-an-array-in-mongodb/25732817#25732817
+const unshiftNewComment = async (cardId, commentData) => {
+  try {
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(cardId) },
+        { $push: { comments: { $each: [commentData], $position: 0 } } },
+        { returnDocument: 'after' }
+      )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+const updateMembers = async (cardId, incomingMemberInfo) => {
+  try {
+    //
+    let updateCondition = {}
+    if (incomingMemberInfo.action === CARD_MEMBER_ACTION.ADD) {
+      updateCondition = {
+        $push: {
+          memberIds: new ObjectId(incomingMemberInfo.userId)
+        }
+      }
+    }
+    if (incomingMemberInfo.action === CARD_MEMBER_ACTION.REMOVE) {
+      updateCondition = {
+        $pull: {
+          memberIds: new ObjectId(incomingMemberInfo.userId)
+        }
+      }
+    }
+    // console.log(updateCondition)
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .findOneAndUpdate({ _id: new ObjectId(cardId) }, updateCondition, {
+        returnDocument: 'after'
+      })
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
 
 export const cardModel = {
   CARD_COLLECTION_NAME,
@@ -94,5 +164,7 @@ export const cardModel = {
   createNew,
   findOneById,
   update,
-  deleteManyByColumnId
+  deleteManyByColumnId,
+  unshiftNewComment,
+  updateMembers
 }

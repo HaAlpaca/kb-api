@@ -7,7 +7,8 @@ import { cloneDeep } from 'lodash'
 import { cardModel } from '~/models/cardModel'
 
 import { columnModel } from '~/models/columnModel'
-const createNew = async reqBody => {
+import { DEFAULT_ITEM_PER_PAGE, DEFAULT_PAGE } from '~/utils/constants'
+const createNew = async (userId, reqBody) => {
   try {
     // xu li tuy dac thu
     const newBoard = {
@@ -15,7 +16,7 @@ const createNew = async reqBody => {
       slug: slugify(reqBody.title)
     }
     // goi tang model xu li ban ghi vao db
-    const createdBoard = await boardModel.createNew(newBoard)
+    const createdBoard = await boardModel.createNew(userId, newBoard)
     const getNewBoard = await boardModel.findOneById(createdBoard.insertedId)
     // tra du lieu ve controller !!!! service luon co return
     return getNewBoard
@@ -23,9 +24,9 @@ const createNew = async reqBody => {
     throw error
   }
 }
-const getDetails = async boardId => {
+const getDetails = async (userId, boardId) => {
   try {
-    const board = await boardModel.getDetails(boardId)
+    const board = await boardModel.getDetails(userId, boardId)
     if (!board) throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
     // clone
     const resBoard = cloneDeep(board)
@@ -47,6 +48,7 @@ const getDetails = async boardId => {
     throw error
   }
 }
+
 const update = async (boardId, reqBody) => {
   try {
     const updateData = {
@@ -83,9 +85,26 @@ const moveCardToDifferentColumn = async reqBody => {
   }
 }
 
+const getBoards = async (userId, page, itemPerPage, queryFilters) => {
+  try {
+    if (!page) page = DEFAULT_PAGE
+    if (!itemPerPage) itemPerPage = DEFAULT_ITEM_PER_PAGE
+    const results = await boardModel.getBoards(
+      userId,
+      parseInt(page, 10),
+      parseInt(itemPerPage, 10),
+      queryFilters
+    )
+    return results
+  } catch (error) {
+    throw error
+  }
+}
+
 export const boardService = {
   createNew,
   getDetails,
   update,
-  moveCardToDifferentColumn
+  moveCardToDifferentColumn,
+  getBoards
 }

@@ -7,9 +7,22 @@ import cors from 'cors'
 import { env } from '~/config/environment'
 import { APIs_v1 } from '~/routes/v1'
 import { errorHandlingMiddleware } from './middlewares/errorHandlingMiddleware'
+import cookieParser from 'cookie-parser'
+import http from 'http'
+import socketIo from 'socket.io'
+import { inviteUserToBoardSocket } from './sockets/inviteUserToBoardSocket'
+
 const START_SERVER = () => {
   const app = express()
-
+  // fix 410 (from disk cache)
+  // https://stackoverflow.com/questions/22632593/how-to-disable-webpage-caching-in-expressjs-nodejs/53240717#53240717
+  app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store')
+    next()
+  })
+  //cau hinh cookie parser
+  app.use(cookieParser())
+  //cau hinh cors
   app.use(cors(corsOptions))
   // enable req.body json data
   app.use(express.json())
@@ -17,15 +30,24 @@ const START_SERVER = () => {
   app.use('/v1', APIs_v1)
   //middleware xu li loi tap trung
   app.use(errorHandlingMiddleware)
+  // tạo server bọc app của express để làm realtime
+  const server = http.createServer(app)
+  // khởi tạo socket io với server và cors
+  const io = socketIo(server, { cors: corsOptions })
+  io.on('connection', socket => {
+    inviteUserToBoardSocket(socket)
+  })
   if (env.BUILD_MODE === 'production') {
-    app.listen(process.env.PORT, () => {
+    // dùng server.listen vì server bọc app rồi
+    server.listen(process.env.PORT, () => {
       // eslint-disable-next-line no-console
       console.log(
         `PRODUCTION: Hi ${env.AUTHOR}, server is running successfully at PORT: ${process.env.PORT}`
       )
     })
   } else {
-    app.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
+    // dùng server.listen vì server bọc app rồi
+    server.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
       // eslint-disable-next-line no-console
       console.log(
         `DEV: Hi ${env.AUTHOR}, server is running successfully at Host: http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}/`
