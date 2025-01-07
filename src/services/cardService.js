@@ -49,9 +49,16 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
         commentedAt: Date.now()
       }
       updatedCard = await cardModel.unshiftNewComment(cardId, commentData)
+    } else if (updateData.incomingMemberInfo) {
+      updatedCard = await cardModel.updateMembers(
+        cardId,
+        updateData.incomingMemberInfo
+      )
+      // console.log(updatedCard)
     } else {
       updatedCard = await cardModel.update(cardId, updateData)
     }
+    // console.log(updatedCard)
     return updatedCard
   } catch (error) {
     throw error

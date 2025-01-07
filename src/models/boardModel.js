@@ -196,7 +196,7 @@ const pullColumnOrderIds = async column => {
   }
 }
 
-const getBoards = async (userId, page, itemPerPage) => {
+const getBoards = async (userId, page, itemPerPage, queryFilters) => {
   try {
     //
     const queryCondition = [
@@ -210,6 +210,25 @@ const getBoards = async (userId, page, itemPerPage) => {
         ]
       }
     ]
+    // queryFilters for search boards title
+    if (queryFilters) {
+      // console.log(queryFilters)
+      // console.log('queryFilters: ', Object.keys(queryFilters))
+      Object.keys(queryFilters).forEach(key => {
+        // phan biet chu hoa chu thg
+        // queryCondition.push({
+        //   [key]: {
+        //     $regex: queryFilters[key]
+        //   }
+        // })
+        // khong phan biet chu hoa chu thg
+        queryCondition.push({
+          [key]: {
+            $regex: new RegExp(queryFilters[key], 'i')
+          }
+        })
+      })
+    }
 
     const query = await GET_DB()
       .collection(BOARD_COLLECTION_NAME)
