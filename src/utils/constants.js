@@ -4,7 +4,8 @@ import { env } from '~/config/environment'
 // tuc la domain cua client
 export const WHITELIST_DOMAINS = [
   // 'http://localhost:5173'
-  'https://trello-web-dun.vercel.app'
+  'https://trello-web-dun.vercel.app',
+  'http://localhost:4173'
   // da luon luon cho phep
   //more
 ]
@@ -29,7 +30,6 @@ export const BOARD_INVITATION_STATUS = {
   ACCEPTED: 'ACCEPTED',
   REJECTED: 'REJECTED'
 }
-
 
 export const CARD_MEMBER_ACTION = {
   ADD: 'ADD',
