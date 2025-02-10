@@ -55,6 +55,11 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
         updateData.incomingMemberInfo
       )
       // console.log(updatedCard)
+    } else if (updateData.updateLabels) {
+      updatedCard = await cardModel.updateLabels(
+        cardId,
+        updateData.updateLabels
+      )
     } else {
       updatedCard = await cardModel.update(cardId, updateData)
     }

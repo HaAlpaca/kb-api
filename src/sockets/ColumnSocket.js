@@ -12,7 +12,13 @@ const Create = socket => {
     socket.broadcast.emit('BE_CREATE_COLUMN', createdColumn)
   })
 }
-export const ColumnSocket = {
+const Move = socket => {
+  socket.on('FE_MOVE_COLUMN', moveColumn => {
+    socket.broadcast.emit('BE_MOVE_COLUMN', moveColumn)
+  })
+}
+export const columnSocket = {
   Delete,
-  Create
+  Create,
+  Move
 }
