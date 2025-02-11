@@ -28,20 +28,30 @@ const getDetails = async (userId, boardId) => {
   try {
     const board = await boardModel.getDetails(userId, boardId)
     if (!board) throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
-    // clone
+
+    // Clone object tránh làm thay đổi dữ liệu gốc
     const resBoard = cloneDeep(board)
-    // copy cards into columns
+
+    // Map labels theo _id để truy vấn nhanh hơn
+    const labelMap = new Map(
+      resBoard.labels.map(label => [label._id.toString(), label])
+    )
+
+    // Gán labels vào từng card
+    resBoard.cards.forEach(card => {
+      card.labels = (card.cardLabelIds || [])
+        .map(labelId => labelMap.get(labelId.toString()))
+        .filter(label => label)
+    })
+
+    // Copy cards vào columns
     resBoard.columns.forEach(column => {
-      // mongodb support equal
       column.cards = resBoard.cards.filter(card =>
         card.columnId.equals(column._id)
       )
-      // copare between objectId => then we need to convert string
-      // column.cards = resBoard.cards.filter(
-      //   card => card.columnId.toString() === column._id.toString()
-      // )
     })
-    // delete cards
+
+    // Xóa cards sau khi đã phân loại vào columns
     delete resBoard.cards
     return resBoard
   } catch (error) {

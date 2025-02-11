@@ -2,7 +2,8 @@
 import { cardModel } from '~/models/cardModel'
 import { columnModel } from '~/models/columnModel'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
-
+import { clone, cloneDeep } from 'lodash'
+import { labelModel } from '~/models/labelModel'
 const createNew = async reqBody => {
   try {
     // xu li tuy dac thu
@@ -63,8 +64,10 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
     } else {
       updatedCard = await cardModel.update(cardId, updateData)
     }
-    // console.log(updatedCard)
-    return updatedCard
+    // add card labels
+    const card = cloneDeep(updatedCard)
+    card.labels = await labelModel.getLabelsByIds(updatedCard.cardLabelIds)
+    return card
   } catch (error) {
     throw error
   }

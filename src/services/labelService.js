@@ -27,11 +27,11 @@ const createNew = async (userId, reqBody) => {
   }
 }
 
-const getBoardLabels = async (boardId, page, itemPerPage) => {
+const getBoardLabels = async boardId => {
   try {
     const board = await boardModel.findOneById(boardId)
     if (!board) throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
-    const result = await labelModel.getBoardLabels(boardId, page, itemPerPage)
+    const result = await labelModel.getBoardLabels(boardId)
     return result
   } catch (error) {
     throw error
@@ -71,6 +71,7 @@ const deleteLabel = async labelId => {
     throw error
   }
 }
+
 
 export const labelService = {
   createNew,

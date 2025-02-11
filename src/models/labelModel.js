@@ -21,33 +21,45 @@ const validateBeforeCreate = async data => {
   return LABEL_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
-const getBoardLabels = async (boardId, page = 1, itemPerPage = 10) => {
+const getBoardLabels = async boardId => {
   try {
     const board = await GET_DB()
       .collection(boardModel.BOARD_COLLECTION_NAME)
-      .findOne(
-        { _id: new ObjectId(boardId) },
-        { projection: { boardLabelIds: 1 } }
-      )
+      .findOne({ _id: new ObjectId(boardId) })
 
     if (!board || !board.boardLabelIds || board.boardLabelIds.length === 0) {
       return { labels: [], totalLabels: 0 }
     }
 
-    const totalLabels = board.boardLabelIds.length
     const labelIds = board.boardLabelIds.map(id => new ObjectId(id))
 
     const labels = await GET_DB()
       .collection(LABEL_COLLECTION_NAME)
       .find({ _id: { $in: labelIds }, _destroy: false }) // Lọc theo boardLabelIds và chưa bị xóa
-      .sort({ title: 1 }) // Sắp xếp theo title A-Z
-      .limit(page * itemPerPage) // Bắt đầu từ trang 1 (không có trang 0)
       .toArray()
 
     return {
-      labels: labels.map(label => pick(label, ['_id', 'title', 'colour'])),
-      totalLabels
+      labels: labels.map(label => pick(label, ['_id', 'title', 'colour']))
     }
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const getLabelsByIds = async labelIds => {
+  try {
+    const labels = await GET_DB()
+      .collection(LABEL_COLLECTION_NAME)
+      .find({
+        _id: { $in: labelIds.map(id => new ObjectId(id)) },
+        _destroy: false
+      })
+      .toArray()
+
+    return labels.map(label => ({
+      _id: label._id.toString(), // Chuyển ObjectId thành string,
+      ...pick(label, ['title', 'colour'])
+    }))
   } catch (error) {
     throw new Error(error)
   }
@@ -180,7 +192,8 @@ export const labelModel = {
   deleteOneById,
   pullBoardLabelIds,
   pullCardLabelIds,
-  getBoardLabels
+  getBoardLabels,
+  getLabelsByIds
 }
 
 //board 6710c1dea34456a8d94373bc

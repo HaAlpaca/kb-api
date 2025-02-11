@@ -9,7 +9,7 @@ Router.route('/').post(
   labelController.createNew
 )
 Router.route('/:id')
-  .get(authMiddleware.isAuthorize, labelController.getBoardLabels)
+  // .get(authMiddleware.isAuthorize, labelController.getBoardLabels)
   .put(
     authMiddleware.isAuthorize,
     labelValidation.update,
