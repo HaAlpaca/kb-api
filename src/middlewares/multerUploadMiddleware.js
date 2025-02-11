@@ -9,7 +9,7 @@ import {
 // docs multer https://www.npmjs.com/package/multer
 
 const customFileFilter = (req, file, cb) => {
-  console.log('multer file: ', file)
+  // console.log('multer file: ', file)
   // check file type
   if (!ALLOW_COMMON_FILE_TYPE.includes(file.mimetype)) {
     const errMessage = 'File type is invalid. Only accept jpg, png, jpeg'

@@ -7,6 +7,7 @@ import { columnModel } from './columnModel'
 import { cardModel } from './cardModel'
 import { pageSkipValue } from '~/utils/algorithms'
 import { userModel } from './userModel'
+import { labelModel } from './labelModel'
 // Define Collection (name & schema)
 const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({
@@ -26,6 +27,9 @@ const BOARD_COLLECTION_SCHEMA = Joi.object({
     .default([]),
   // member cua board
   memberIds: Joi.array()
+    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
+    .default([]),
+  boardLabelIds: Joi.array()
     .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
     .default([]),
 
@@ -117,6 +121,15 @@ const getDetails = async (userId, boardId) => {
             foreignField: '_id',
             as: 'members',
             pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
+          }
+        },
+        {
+          $lookup: {
+            from: labelModel.LABEL_COLLECTION_NAME,
+            localField: 'boardLabelIds',
+            foreignField: '_id',
+            as: 'labels',
+            pipeline: [{ $project: { _id: 1, title: 1, colour: 1 } }]
           }
         }
       ])

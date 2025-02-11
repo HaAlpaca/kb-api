@@ -11,8 +11,8 @@ import cookieParser from 'cookie-parser'
 import http from 'http'
 import socketIo from 'socket.io'
 import { inviteUserToBoardSocket } from './sockets/inviteUserToBoardSocket'
-import { MoveCardToDifferentColumnSocket } from './sockets/MoveCardToDifferentColumnSocket'
-import { ColumnSocket } from './sockets/ColumnSocket'
+import { MoveCardToDifferentColumnSocket } from './sockets/cardSocket'
+import { columnSocket } from './sockets/columnSocket'
 
 const START_SERVER = () => {
   const app = express()
@@ -39,8 +39,9 @@ const START_SERVER = () => {
   io.on('connection', socket => {
     inviteUserToBoardSocket(socket)
     MoveCardToDifferentColumnSocket(socket)
-    ColumnSocket.Create(socket)
-    ColumnSocket.Delete(socket)
+    columnSocket.Create(socket)
+    columnSocket.Delete(socket)
+    columnSocket.Move(socket)
   })
   if (env.BUILD_MODE === 'production') {
     // dùng server.listen vì server bọc app rồi
