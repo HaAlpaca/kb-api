@@ -2,7 +2,7 @@
 import { cardModel } from '~/models/cardModel'
 import { columnModel } from '~/models/columnModel'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
-import { clone, cloneDeep } from 'lodash'
+import { cloneDeep } from 'lodash'
 import { labelModel } from '~/models/labelModel'
 const createNew = async reqBody => {
   try {
