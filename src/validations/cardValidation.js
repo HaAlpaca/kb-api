@@ -14,7 +14,7 @@ const createNew = async (req, res, next) => {
       .pattern(OBJECT_ID_RULE)
       .message(OBJECT_ID_RULE_MESSAGE),
 
-    title: Joi.string().required().min(3).max(50).trim().strict()
+    title: Joi.string().required().min(3).max(100).trim().strict()
   })
   try {
     await correctCondition.validateAsync(req.body, { abortEarly: false })

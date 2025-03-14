@@ -13,7 +13,6 @@ const createNew = async reqBody => {
     // goi tang model xu li ban ghi vao db
     const createdCard = await cardModel.createNew(newCard)
     const getNewCard = await cardModel.findOneById(createdCard.insertedId)
-
     if (getNewCard) {
       // cap nhat lai mang cardOrderIds
       await columnModel.pushCardOrderIds(getNewCard)
