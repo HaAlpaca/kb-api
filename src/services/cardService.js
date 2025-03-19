@@ -60,6 +60,11 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
         cardId,
         updateData.updateLabels
       )
+    } else if (updateData.updateAttachments) {
+      updatedCard = await cardModel.updateAttachments(
+        cardId,
+        updateData.updateAttachments
+      )
     } else {
       updatedCard = await cardModel.update(cardId, updateData)
     }

@@ -8,6 +8,7 @@ import { cardModel } from './cardModel'
 import { pageSkipValue } from '~/utils/algorithms'
 import { userModel } from './userModel'
 import { labelModel } from './labelModel'
+import { AttachmentModel } from './attachmentModal'
 // Define Collection (name & schema)
 const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({
@@ -82,11 +83,13 @@ const getDetails = async (userId, boardId) => {
         ]
       }
     ]
-    // con phan aggregate chung ta phai update
+
     const result = await GET_DB()
       .collection(BOARD_COLLECTION_NAME)
       .aggregate([
         { $match: { $and: queryCondition } },
+
+        // Join columns
         {
           $lookup: {
             from: columnModel.COLUMN_COLLECTION_NAME,
@@ -95,6 +98,8 @@ const getDetails = async (userId, boardId) => {
             as: 'columns'
           }
         },
+
+        // Join cards
         {
           $lookup: {
             from: cardModel.CARD_COLLECTION_NAME,
@@ -103,17 +108,19 @@ const getDetails = async (userId, boardId) => {
             as: 'cards'
           }
         },
+
+        // Join owners
         {
           $lookup: {
             from: userModel.USER_COLLECTION_NAME,
             localField: 'ownerIds',
             foreignField: '_id',
             as: 'owners',
-            // pipeline: để xử lí 1 hoặc nhiều luồng 1 lúc
-            //  $project chỉ định vài field không muốn lấy bằng cách gán = 0
             pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
           }
         },
+
+        // Join members
         {
           $lookup: {
             from: userModel.USER_COLLECTION_NAME,
@@ -123,6 +130,8 @@ const getDetails = async (userId, boardId) => {
             pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
           }
         },
+
+        // Join labels
         {
           $lookup: {
             from: labelModel.LABEL_COLLECTION_NAME,
@@ -131,15 +140,62 @@ const getDetails = async (userId, boardId) => {
             as: 'labels',
             pipeline: [{ $project: { _id: 1, title: 1, colour: 1 } }]
           }
+        },
+
+        // 🔥 Join attachments từ cardAttachmentIds
+        {
+          $lookup: {
+            from: AttachmentModel.ATTACHMENT_COLLECTION_NAME,
+            localField: 'cards.cardAttachmentIds', // Trường chứa các attachmentIds trong card
+            foreignField: '_id',
+            as: 'attachments'
+          }
+        },
+
+        // 🔥 Gán attachments vào từng card
+        {
+          $addFields: {
+            cards: {
+              $map: {
+                input: '$cards',
+                as: 'card',
+                in: {
+                  $mergeObjects: [
+                    '$$card',
+                    {
+                      attachments: {
+                        $filter: {
+                          input: '$attachments',
+                          as: 'attachment',
+                          cond: {
+                            $in: [
+                              '$$attachment._id',
+                              '$$card.cardAttachmentIds'
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+
+        // Xóa mảng attachments sau khi đã gán vào card
+        {
+          $unset: 'attachments'
         }
       ])
       .toArray()
-    // console.log(result)
+
     return result[0] || null
   } catch (error) {
     throw new Error(error)
   }
 }
+
 // push 1 gia tri column id vao mang columnOrderIds
 const pushColumnOrderIds = async column => {
   try {

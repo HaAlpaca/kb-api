@@ -3,7 +3,8 @@ import multer from 'multer'
 import ApiError from '~/utils/ApiError'
 import {
   ALLOW_COMMON_FILE_TYPE,
-  LIMIT_COMMON_FILE_SIZE
+  LIMIT_COMMON_FILE_SIZE,
+  LIMIT_ATTACHMENT_FILE_SIZE
 } from '~/utils/validators'
 
 // docs multer https://www.npmjs.com/package/multer
@@ -19,8 +20,12 @@ const customFileFilter = (req, file, cb) => {
   return cb(null, true)
 }
 
-const upload = multer({
+const uploadMedia = multer({
   limits: { fileSize: LIMIT_COMMON_FILE_SIZE },
   fileFilter: customFileFilter
 })
-export const multerUploadMiddleware = { upload }
+const uploadAttachment = multer({
+  limits: { fileSize: LIMIT_ATTACHMENT_FILE_SIZE }
+})
+
+export const multerUploadMiddleware = { uploadMedia, uploadAttachment }

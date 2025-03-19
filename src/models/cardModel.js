@@ -30,6 +30,9 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
   cardLabelIds: Joi.array()
     .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
     .default([]),
+  cardAttachmentIds: Joi.array()
+    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
+    .default([]),
   comments: Joi.array()
     .items({
       userId: Joi.string()
@@ -178,6 +181,24 @@ const updateLabels = async (cardId, updateLabels) => {
     throw new Error(error)
   }
 }
+const updateAttachments = async (cardId, updateAttachments) => {
+  try {
+    const objectIdAttachments = updateAttachments.map(id => new ObjectId(id))
+
+    const updateCondition = {
+      $set: { cardAttachmentIds: objectIdAttachments }
+    }
+
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .findOneAndUpdate({ _id: new ObjectId(cardId) }, updateCondition, {
+        returnDocument: 'after'
+      })
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
 
 export const cardModel = {
   CARD_COLLECTION_NAME,
@@ -188,5 +209,6 @@ export const cardModel = {
   deleteManyByColumnId,
   unshiftNewComment,
   updateMembers,
-  updateLabels
+  updateLabels,
+  updateAttachments
 }

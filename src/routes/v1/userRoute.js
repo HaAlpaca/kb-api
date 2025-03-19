@@ -21,7 +21,7 @@ Router.route('/refresh_token').get(userController.refreshToken)
 
 Router.route('/update').put(
   authMiddleware.isAuthorize,
-  multerUploadMiddleware.upload.single('avatar'),
+  multerUploadMiddleware.uploadMedia.single('avatar'),
   userValidation.update,
   userController.update
 )
