@@ -8,6 +8,9 @@ import {
 import { GET_DB } from '~/config/mongodb'
 import { ObjectId } from 'mongodb'
 import { CARD_MEMBER_ACTION } from '~/utils/constants'
+import { userModel } from './userModel'
+import { labelModel } from './labelModel'
+import { AttachmentModel } from './attachmentModal'
 // Define Collection (name & schema)
 const CARD_COLLECTION_NAME = 'cards'
 const CARD_COLLECTION_SCHEMA = Joi.object({
@@ -53,6 +56,67 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
 const INVALID_UPDATE_FIELDS = ['_id', 'boardId', 'createdAt']
 const validateBeforeCreate = async data => {
   return CARD_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
+}
+
+const getDetails = async (userId, cardId) => {
+  try {
+    const queryCondition = [
+      { _id: new ObjectId(cardId) },
+      { _destroy: false }
+      // {
+      //   $or: [
+      //     { ownerIds: { $all: [new ObjectId(userId)] } },
+      //     { memberIds: { $all: [new ObjectId(userId)] } }
+      //   ]
+      // }
+    ]
+
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .aggregate([
+        { $match: { $and: queryCondition } },
+
+        // Join members
+        {
+          $lookup: {
+            from: userModel.USER_COLLECTION_NAME,
+            localField: 'memberIds',
+            foreignField: '_id',
+            as: 'members',
+            pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
+          }
+        },
+
+        // Join labels
+        {
+          $lookup: {
+            from: labelModel.LABEL_COLLECTION_NAME,
+            localField: 'cardLabelIds',
+            foreignField: '_id',
+            as: 'labels',
+            pipeline: [{ $project: { _id: 1, title: 1, colour: 1 } }]
+          }
+        },
+
+        // 🔥 Join attachments từ cardAttachmentIds
+        {
+          $lookup: {
+            from: AttachmentModel.ATTACHMENT_COLLECTION_NAME,
+            localField: 'cardAttachmentIds',
+            foreignField: '_id',
+            as: 'attachments',
+            pipeline: [
+              { $project: { _id: 1, name: 1, link: 1, type: 1, size: 1 } }
+            ]
+          }
+        }
+      ])
+      .toArray()
+
+    return result[0] || null
+  } catch (error) {
+    throw new Error(error)
+  }
 }
 
 const createNew = async data => {
@@ -203,6 +267,7 @@ const updateAttachments = async (cardId, updateAttachments) => {
 export const cardModel = {
   CARD_COLLECTION_NAME,
   CARD_COLLECTION_SCHEMA,
+  getDetails,
   createNew,
   findOneById,
   update,

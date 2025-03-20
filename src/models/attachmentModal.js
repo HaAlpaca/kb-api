@@ -3,7 +3,6 @@ import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { cardModel } from './cardModel'
 import { pick } from 'lodash'
-import { boardModel } from './boardModel'
 // Define Collection (name & schema)
 const ATTACHMENT_COLLECTION_NAME = 'attachments'
 const ATTACHMENT_COLLECTION_SCHEMA = Joi.object({
