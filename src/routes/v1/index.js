@@ -6,6 +6,7 @@ import { cardRoute } from './cardRoute'
 import { userRoute } from './userRoute'
 import { invitationRoute } from './invitationRoute'
 import { labelRoute } from './labelRoute'
+import { attachmentRoute } from './attachmentRoute'
 const Router = express.Router()
 // check api v1
 Router.get('/status', (req, res) => {
@@ -25,5 +26,7 @@ Router.use('/users', userRoute)
 Router.use('/labels', labelRoute)
 // invitation API
 Router.use('/invitations', invitationRoute)
+// attachment API
+Router.use('/attachments', attachmentRoute)
 
 export const APIs_v1 = Router

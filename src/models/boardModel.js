@@ -8,6 +8,7 @@ import { cardModel } from './cardModel'
 import { pageSkipValue } from '~/utils/algorithms'
 import { userModel } from './userModel'
 import { labelModel } from './labelModel'
+import { AttachmentModel } from './attachmentModal'
 // Define Collection (name & schema)
 const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({
@@ -140,6 +141,7 @@ const getDetails = async (userId, boardId) => {
     throw new Error(error)
   }
 }
+
 // push 1 gia tri column id vao mang columnOrderIds
 const pushColumnOrderIds = async column => {
   try {

@@ -1,4 +1,5 @@
 import { pick } from 'lodash'
+import mime from 'mime-types'
 /**
  * Simple method to Convert a String to Slug
  * Các bạn có thể tham khảo thêm kiến thức liên quan ở đây: https://byby.dev/js-slugify-string
@@ -42,4 +43,8 @@ export const pickUser = user => {
     'createAt',
     'updateAt'
   ])
+}
+
+export const formatMimeType = attachmentFile => {
+  return mime.extension(mime.lookup(attachmentFile.originalname))
 }

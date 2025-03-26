@@ -11,4 +11,5 @@ export const PASSWORD_RULE_MESSAGE =
 // validate File
 // 10MB
 export const LIMIT_COMMON_FILE_SIZE = 10 * 1024 * 1024
+export const LIMIT_ATTACHMENT_FILE_SIZE = 200 * 1024 * 1024
 export const ALLOW_COMMON_FILE_TYPE = ['image/jpeg', 'image/png', 'image/jpg']

@@ -29,6 +29,7 @@ const getDetails = async (userId, boardId) => {
     const board = await boardModel.getDetails(userId, boardId)
     if (!board) throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
 
+    // ******************************************************* Label
     // Clone object tránh làm thay đổi dữ liệu gốc
     const resBoard = cloneDeep(board)
 
@@ -50,9 +51,10 @@ const getDetails = async (userId, boardId) => {
         card.columnId.equals(column._id)
       )
     })
-
     // Xóa cards sau khi đã phân loại vào columns
     delete resBoard.cards
+    // ******************************************************* Attachment
+
     return resBoard
   } catch (error) {
     throw error

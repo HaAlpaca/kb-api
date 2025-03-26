@@ -4,8 +4,8 @@ import { labelService } from '~/services/labelService'
 const createNew = async (req, res, next) => {
   try {
     const userId = req.jwtDecoded._id
-    const createdBoard = await labelService.createNew(userId, req.body)
-    res.status(StatusCodes.CREATED).json(createdBoard)
+    const createdLabel = await labelService.createNew(userId, req.body)
+    res.status(StatusCodes.CREATED).json(createdLabel)
   } catch (error) {
     next(error)
   }

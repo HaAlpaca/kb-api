@@ -2,8 +2,21 @@
 import { cardModel } from '~/models/cardModel'
 import { columnModel } from '~/models/columnModel'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
-import { clone, cloneDeep } from 'lodash'
+import { cloneDeep } from 'lodash'
 import { labelModel } from '~/models/labelModel'
+import { StatusCodes } from 'http-status-codes'
+import ApiError from '~/utils/ApiError'
+
+const getDetails = async (userId, cardId) => {
+  try {
+    const card = await cardModel.getDetails(userId, cardId)
+    if (!card) throw new ApiError(StatusCodes.NOT_FOUND, 'Card not found!')
+    return card
+  } catch (error) {
+    throw error
+  }
+}
+
 const createNew = async reqBody => {
   try {
     // xu li tuy dac thu
@@ -13,7 +26,6 @@ const createNew = async reqBody => {
     // goi tang model xu li ban ghi vao db
     const createdCard = await cardModel.createNew(newCard)
     const getNewCard = await cardModel.findOneById(createdCard.insertedId)
-
     if (getNewCard) {
       // cap nhat lai mang cardOrderIds
       await columnModel.pushCardOrderIds(getNewCard)
@@ -61,6 +73,11 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
         cardId,
         updateData.updateLabels
       )
+    } else if (updateData.updateAttachments) {
+      updatedCard = await cardModel.updateAttachments(
+        cardId,
+        updateData.updateAttachments
+      )
     } else {
       updatedCard = await cardModel.update(cardId, updateData)
     }
@@ -74,6 +91,7 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
 }
 
 export const cardService = {
+  getDetails,
   createNew,
   update
 }

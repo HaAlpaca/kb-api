@@ -1,6 +1,7 @@
 import cloudinary from 'cloudinary'
 import streamifier from 'streamifier'
 import { env } from '~/config/environment'
+import { v4 as uuidv4 } from 'uuid'
 // https://www.npmjs.com/package/cloudinary
 // https://www.npmjs.com/package/streamifier
 
@@ -33,4 +34,27 @@ const streamUpload = (fileBuffer, folderName) => {
     streamifier.createReadStream(fileBuffer).pipe(stream)
   })
 }
-export const CloudinaryProvider = { streamUpload }
+const streamUploadAttachment = (fileBuffer, folderName, baseName, mineType) => {
+  //
+  return new Promise((resolve, reject) => {
+    // Đảm bảo tên file có đuôi (ví dụ: myfile.docx)
+    const publicId = `${baseName}-${uuidv4()}.${mineType}`
+    let stream = cloudinaryV2.uploader.upload_stream(
+      {
+        folder: folderName,
+        resource_type: 'raw',
+        public_id: publicId
+      },
+      (error, result) => {
+        if (result) {
+          resolve(result)
+        } else {
+          reject(error)
+        }
+      }
+    )
+
+    streamifier.createReadStream(fileBuffer).pipe(stream)
+  })
+}
+export const CloudinaryProvider = { streamUpload, streamUploadAttachment }
