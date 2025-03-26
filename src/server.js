@@ -13,6 +13,7 @@ import socketIo from 'socket.io'
 import { inviteUserToBoardSocket } from './sockets/inviteUserToBoardSocket'
 import { MoveCardToDifferentColumnSocket } from './sockets/cardSocket'
 import { columnSocket } from './sockets/columnSocket'
+import { START_CRON_JOB } from './config/cron'
 
 const START_SERVER = () => {
   const app = express()
@@ -74,6 +75,7 @@ const START_SERVER = () => {
     await CONNECT_DB()
     console.log('Connect to MongoDB Cloud Atlas!')
     START_SERVER()
+    START_CRON_JOB()
   } catch (error) {
     console.error(error)
   }
