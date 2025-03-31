@@ -10,7 +10,6 @@ const ATTACHMENT_COLLECTION_SCHEMA = Joi.object({
   link: Joi.string().uri().trim().strict().required(),
   size: Joi.number().required(),
   type: Joi.string().min(3).trim().strict().required(),
-  description: Joi.string().allow(null, ''),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
@@ -35,7 +34,7 @@ const getAttachmentsByIds = async attachmentIds => {
 
     return attachments.map(attachment => ({
       _id: attachment._id.toString(),
-      ...pick(attachment, ['name', 'link', 'size', 'type', 'description'])
+      ...pick(attachment, ['name', 'link', 'size', 'type'])
     }))
   } catch (error) {
     throw new Error(error)
@@ -65,7 +64,7 @@ const getCardAttachments = async cardId => {
 
     return {
       attachments: attachments.map(label =>
-        pick(label, ['_id', 'name', 'description', 'link', 'type', 'size'])
+        pick(label, ['_id', 'name', 'link', 'type', 'size'])
       )
     }
   } catch (error) {

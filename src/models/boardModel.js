@@ -8,7 +8,6 @@ import { cardModel } from './cardModel'
 import { pageSkipValue } from '~/utils/algorithms'
 import { userModel } from './userModel'
 import { labelModel } from './labelModel'
-import { AttachmentModel } from './attachmentModal'
 // Define Collection (name & schema)
 const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({

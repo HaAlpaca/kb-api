@@ -3,7 +3,7 @@
 // import ApiError from '~/utils/ApiError'
 // import { boardModel } from '~/models/boardModel'
 import { StatusCodes } from 'http-status-codes'
-import { AttachmentModel } from '~/models/attachmentModal'
+import { AttachmentModel } from '~/models/attachmentModel'
 import { cardModel } from '~/models/cardModel'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
 import ApiError from '~/utils/ApiError'
@@ -14,7 +14,6 @@ const createNew = async (userId, reqBody, attachmentFile) => {
   try {
     const newAttachment = {
       name: '',
-      description: '',
       link: '',
       type: '',
       size: 0
@@ -23,7 +22,6 @@ const createNew = async (userId, reqBody, attachmentFile) => {
     if (reqBody.link) {
       newAttachment.name = reqBody.name
       newAttachment.link = reqBody.link
-      newAttachment.description = reqBody.description && ''
       newAttachment.type = 'link'
       newAttachment.size = 0
     }
@@ -84,16 +82,10 @@ const update = async (attachmentId, reqBody) => {
 
     if (attachment.link !== 'link') {
       updateData.name = reqBody.name ? reqBody.name : attachment.name
-      updateData.description = reqBody.description
-        ? reqBody.description
-        : attachment.description
     }
     if (attachment.type === 'link') {
       updateData.name = reqBody.name ? reqBody.name : attachment.name
       updateData.link = reqBody.link ? reqBody.link : attachment.name
-      updateData.description = reqBody.description
-        ? reqBody.description
-        : attachment.description
     }
 
     // console.log(updateData)
@@ -115,7 +107,7 @@ const deleteAttachment = async attachmentId => {
     // xoa attachment
     await AttachmentModel.deleteOneById(attachmentId)
     // xoa attachment thuoc card
-    await AttachmentModel.pullCardLabelIds(attachmentId)
+    await AttachmentModel.pullCardAttachmentIds(attachmentId)
     return {
       deleteResult: 'Attachment delete successfully',
       attachmentId

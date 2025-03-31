@@ -10,7 +10,8 @@ import { ObjectId } from 'mongodb'
 import { CARD_MEMBER_ACTION } from '~/utils/constants'
 import { userModel } from './userModel'
 import { labelModel } from './labelModel'
-import { AttachmentModel } from './attachmentModal'
+import { AttachmentModel } from './attachmentModel'
+import { checkboxModel } from './checkboxModel'
 // Define Collection (name & schema)
 const CARD_COLLECTION_NAME = 'cards'
 const CARD_COLLECTION_SCHEMA = Joi.object({
@@ -34,6 +35,9 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
     .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
     .default([]),
   cardAttachmentIds: Joi.array()
+    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
+    .default([]),
+  cardCheckboxIds: Joi.array()
     .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
     .default([]),
   comments: Joi.array()
@@ -108,6 +112,17 @@ const getDetails = async (userId, cardId) => {
             pipeline: [
               { $project: { _id: 1, name: 1, link: 1, type: 1, size: 1 } }
             ]
+          }
+        },
+
+        // 🔥 Join checkboxes từ cardCheckboxIds
+        {
+          $lookup: {
+            from: checkboxModel.CHECKBOX_COLLECTION_NAME,
+            localField: 'cardCheckboxIds',
+            foreignField: '_id',
+            as: 'checkboxes',
+            pipeline: [{ $project: { _id: 1, name: 1, is_checked: 1 } }]
           }
         }
       ])
