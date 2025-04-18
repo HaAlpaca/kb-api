@@ -31,6 +31,18 @@ const update = async (req, res, next) => {
       cardCoverFile,
       userInfo
     )
+    const card = await cardService.getDetails(updatedCard._id, cardId)
+    res.status(StatusCodes.OK).json(card)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const toogleCardComplete = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const cardId = req.params.id
+    const updatedCard = await cardService.toogleCardComplete(userId, cardId)
     res.status(StatusCodes.OK).json(updatedCard)
   } catch (error) {
     next(error)
@@ -40,5 +52,6 @@ const update = async (req, res, next) => {
 export const cardController = {
   getDetails,
   createNew,
-  update
+  update,
+  toogleCardComplete
 }

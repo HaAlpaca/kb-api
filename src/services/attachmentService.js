@@ -28,7 +28,10 @@ const createNew = async (userId, reqBody, attachmentFile) => {
 
     if (attachmentFile) {
       // lấy file name
-      const fileName = attachmentFile.originalname.replace(/\.[^/.]+$/, '')
+      const fileName = attachmentFile.originalname
+        .replace(/\.[^/.]+$/, '') // Xóa phần mở rộng của file
+        .replace(/[^a-zA-Z0-9\s]/g, '') // Xóa các ký tự đặc biệt trừ chữ, số và khoảng trắng
+        .trim() // Loại bỏ khoảng trắng dư thừa ở đầu/cuối chuỗi
       const mineType = formatMimeType(attachmentFile) // get pdf, docx
       const uploadResult = await CloudinaryProvider.streamUploadAttachment(
         attachmentFile.buffer,

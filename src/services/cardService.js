@@ -1,16 +1,16 @@
 /* eslint-disable no-useless-catch */
 import { cardModel } from '~/models/cardModel'
 import { columnModel } from '~/models/columnModel'
-import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
-import { cloneDeep } from 'lodash'
-import { labelModel } from '~/models/labelModel'
+// import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
 import { StatusCodes } from 'http-status-codes'
 import ApiError from '~/utils/ApiError'
+import { attachmentService } from './attachmentService'
 
 const getDetails = async (userId, cardId) => {
   try {
     const card = await cardModel.getDetails(userId, cardId)
     if (!card) throw new ApiError(StatusCodes.NOT_FOUND, 'Card not found!')
+
     return card
   } catch (error) {
     throw error
@@ -45,13 +45,20 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
     }
     let updatedCard = {}
     if (cardCoverFile) {
-      const uploadResult = await CloudinaryProvider.streamUpload(
-        cardCoverFile.buffer,
-        'KanbanBoard/images'
+      // const uploadResult = await CloudinaryProvider.streamUpload(
+      //   cardCoverFile.buffer,
+      //   'KanbanBoard/images'
+      // )
+      // attachment to card
+      const attachment = await attachmentService.createNew(
+        userInfo._id,
+        { cardId: cardId },
+        cardCoverFile
       )
+
       // console.log('uploadResult: ', uploadResult)
       updatedCard = await cardModel.update(cardId, {
-        cover: uploadResult.secure_url
+        cover: attachment.link
       })
     } else if (updateData.commentToAdd) {
       // tao du lieu comment to db
@@ -78,13 +85,46 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
         cardId,
         updateData.updateAttachments
       )
+    } else if (updateData.updateDueDate) {
+      updatedCard = await cardModel.updateDueDate(
+        cardId,
+        updateData.updateDueDate
+      )
+    } else if (updateData.updateChecklists) {
+      updatedCard = await cardModel.updateChecklists(
+        cardId,
+        updateData.updateChecklists
+      )
     } else {
       updatedCard = await cardModel.update(cardId, updateData)
     }
-    // add card labels
-    const card = cloneDeep(updatedCard)
-    card.labels = await labelModel.getLabelsByIds(updatedCard.cardLabelIds)
-    return card
+
+    return updatedCard
+  } catch (error) {
+    throw error
+  }
+}
+
+const toogleCardComplete = async (userId, cardId) => {
+  try {
+    const card = await cardModel.getDetails(userId, cardId)
+    if (!card) throw new ApiError(StatusCodes.NOT_FOUND, 'Card not found!')
+
+    const updatedCard = await cardModel.toogleCardComplete(
+      cardId,
+      card.isComplete
+    )
+    // if (updatedCard.isComplete) {
+    //   const actionMarkCompleteCard = await actionModel.createNew(userId, {
+    //     type: 'mark_complete_card',
+    //     description: `Card "${updatedCard.title}" was marked as completed by ${updatedCard.displayName}`,
+    //     targetType: 'card',
+    //     targetId: card._id.toString(),
+    //     boardId: card.boardId.toString()
+    //   })
+    // }
+
+    return updatedCard
   } catch (error) {
     throw error
   }
@@ -93,5 +133,6 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
 export const cardService = {
   getDetails,
   createNew,
-  update
+  update,
+  toogleCardComplete
 }

@@ -11,7 +11,7 @@ import { CARD_MEMBER_ACTION } from '~/utils/constants'
 import { userModel } from './userModel'
 import { labelModel } from './labelModel'
 import { AttachmentModel } from './attachmentModel'
-import { checkboxModel } from './checkboxModel'
+import { checklistModel } from './checklistModel'
 // Define Collection (name & schema)
 const CARD_COLLECTION_NAME = 'cards'
 const CARD_COLLECTION_SCHEMA = Joi.object({
@@ -37,9 +37,13 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
   cardAttachmentIds: Joi.array()
     .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
     .default([]),
-  cardCheckboxIds: Joi.array()
+  cardChecklistIds: Joi.array()
     .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
     .default([]),
+
+  // mark complete
+  isComplete: Joi.boolean().default(false),
+  // Comments
   comments: Joi.array()
     .items({
       userId: Joi.string()
@@ -53,6 +57,12 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
       commentedAt: Joi.date().timestamp()
     })
     .default([]),
+
+  // Date
+  startDate: Joi.date().timestamp('javascript').optional(),
+  dueDate: Joi.date().timestamp('javascript').optional(),
+  reminder: Joi.date().timestamp('javascript').optional(),
+
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
   _destroy: Joi.boolean().default(false)
@@ -110,7 +120,16 @@ const getDetails = async (userId, cardId) => {
             foreignField: '_id',
             as: 'attachments',
             pipeline: [
-              { $project: { _id: 1, name: 1, link: 1, type: 1, size: 1 } }
+              {
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  link: 1,
+                  type: 1,
+                  size: 1,
+                  createdAt: 1
+                }
+              }
             ]
           }
         },
@@ -118,11 +137,10 @@ const getDetails = async (userId, cardId) => {
         // 🔥 Join checkboxes từ cardCheckboxIds
         {
           $lookup: {
-            from: checkboxModel.CHECKBOX_COLLECTION_NAME,
-            localField: 'cardCheckboxIds',
+            from: checklistModel.CHECKLIST_COLLECTION_NAME,
+            localField: 'cardChecklistIds',
             foreignField: '_id',
-            as: 'checkboxes',
-            pipeline: [{ $project: { _id: 1, name: 1, is_checked: 1 } }]
+            as: 'checklists'
           }
         }
       ])
@@ -147,6 +165,20 @@ const createNew = async data => {
       .collection(CARD_COLLECTION_NAME)
       .insertOne(newCardToAdd)
     return createdCard
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+const toogleCardComplete = async (cardId, isComplete) => {
+  try {
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(cardId) },
+        { $set: { isComplete: !isComplete } },
+        { returnDocument: 'after' }
+      )
+    return result
   } catch (error) {
     throw new Error(error)
   }
@@ -213,6 +245,28 @@ const unshiftNewComment = async (cardId, commentData) => {
     throw new Error(error)
   }
 }
+
+const updateDueDate = async (cardId, dateData) => {
+  try {
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(cardId) },
+        {
+          $set: {
+            dueDate: dateData.dueDate,
+            startDate: dateData.startDate,
+            reminder: dateData.reminder
+          }
+        },
+        { returnDocument: 'after' }
+      )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 const updateMembers = async (cardId, incomingMemberInfo) => {
   try {
     //
@@ -260,6 +314,7 @@ const updateLabels = async (cardId, updateLabels) => {
     throw new Error(error)
   }
 }
+
 const updateAttachments = async (cardId, updateAttachments) => {
   try {
     const objectIdAttachments = updateAttachments.map(id => new ObjectId(id))
@@ -279,9 +334,30 @@ const updateAttachments = async (cardId, updateAttachments) => {
   }
 }
 
+const updateChecklists = async (cardId, updateChecklists) => {
+  try {
+    const objectIdChecklists = updateChecklists.map(id => new ObjectId(id))
+
+    const updateCondition = {
+      $set: { cardChecklistIds: objectIdChecklists }
+    }
+
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .findOneAndUpdate({ _id: new ObjectId(cardId) }, updateCondition, {
+        returnDocument: 'after'
+      })
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const cardModel = {
   CARD_COLLECTION_NAME,
   CARD_COLLECTION_SCHEMA,
+  updateDueDate,
+  toogleCardComplete,
   getDetails,
   createNew,
   findOneById,
@@ -290,5 +366,6 @@ export const cardModel = {
   unshiftNewComment,
   updateMembers,
   updateLabels,
-  updateAttachments
+  updateAttachments,
+  updateChecklists
 }
