@@ -34,7 +34,7 @@ const getAttachmentsByIds = async attachmentIds => {
 
     return attachments.map(attachment => ({
       _id: attachment._id.toString(),
-      ...pick(attachment, ['name', 'link', 'size', 'type'])
+      ...pick(attachment, ['name', 'link', 'size', 'type', 'createdAt'])
     }))
   } catch (error) {
     throw new Error(error)
@@ -64,7 +64,7 @@ const getCardAttachments = async cardId => {
 
     return {
       attachments: attachments.map(label =>
-        pick(label, ['_id', 'name', 'link', 'type', 'size'])
+        pick(label, ['_id', 'name', 'link', 'type', 'size', 'createdAt'])
       )
     }
   } catch (error) {

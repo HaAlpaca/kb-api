@@ -18,5 +18,10 @@ Router.route('/:id')
     cardValidation.update,
     cardController.update
   )
+Router.route('/complete/:id').put(
+  authMiddleware.isAuthorize,
+  // cardValidation.update,
+  cardController.toogleCardComplete
+)
 
 export const cardRoute = Router
