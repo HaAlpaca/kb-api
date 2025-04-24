@@ -1,13 +1,19 @@
 import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
-import { BOARD_TYPES } from '~/utils/constants'
+import {
+  ACTION_TYPES,
+  BOARD_TYPES,
+  CARD_MEMBER_ACTION
+} from '~/utils/constants'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { columnModel } from './columnModel'
 import { cardModel } from './cardModel'
 import { pageSkipValue } from '~/utils/algorithms'
 import { userModel } from './userModel'
 import { labelModel } from './labelModel'
+import { actionModel } from './actionModel'
+
 // Define Collection (name & schema)
 const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({
@@ -16,7 +22,9 @@ const BOARD_COLLECTION_SCHEMA = Joi.object({
   description: Joi.string().required().min(3).max(256).trim().strict(),
 
   type: Joi.string().valid(BOARD_TYPES.PUBLIC, BOARD_TYPES.PRIVATE).required(),
-
+  cover: Joi.string().default(
+    'https://images.unsplash.com/photo-1669236712949-b58f9758898d'
+  ),
   // Lưu ý các item trong mảng columnOrderIds là ObjectId nên cần thêm pattern cho chuẩn nhé, (lúc quay video số 57 mình quên nhưng sang đầu video số 58 sẽ có nhắc lại về cái này.)
   columnOrderIds: Joi.array()
     .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
@@ -294,9 +302,46 @@ const getBoards = async (userId, page, itemPerPage, queryFilters) => {
   }
 }
 
+const updateMembers = async (boardId, updateData) => {
+  try {
+    const incomingMemberInfo = updateData.incomingMemberInfo
+    let updateCondition = {}
+    if (incomingMemberInfo.action === CARD_MEMBER_ACTION.ADD) {
+      updateCondition = {
+        $push: {
+          ownerIds: new ObjectId(incomingMemberInfo.userId)
+        },
+        $pull: {
+          memberIds: new ObjectId(incomingMemberInfo.userId)
+        }
+      }
+    }
+    if (incomingMemberInfo.action === CARD_MEMBER_ACTION.REMOVE) {
+      updateCondition = {
+        $pull: {
+          ownerIds: new ObjectId(incomingMemberInfo.userId)
+        },
+        $push: {
+          memberIds: new ObjectId(incomingMemberInfo.userId)
+        }
+      }
+    }
+    // console.log(updateCondition)
+    const result = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .findOneAndUpdate({ _id: new ObjectId(boardId) }, updateCondition, {
+        returnDocument: 'after'
+      })
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const boardModel = {
   BOARD_COLLECTION_NAME,
   BOARD_COLLECTION_SCHEMA,
+  updateMembers,
   createNew,
   findOneById,
   getDetails,

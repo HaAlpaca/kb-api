@@ -23,7 +23,7 @@ const createNew = async (userId, reqBody) => {
       ...reqBody
     }
     // eslint-disable-next-line no-console
-    console.log('userId: ', userId)
+    // console.log('userId: ', userId)
 
     const createdChecklist = await checklistModel.createNew(newChecklist)
     const getNewChecklist = await checklistModel.findOneById(

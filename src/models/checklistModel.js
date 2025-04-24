@@ -299,7 +299,7 @@ const updateIncomingAssignedUser = async (
   incomingInfo
 ) => {
   try {
-    console.log(checklistId, itemId, incomingInfo)
+    // console.log(checklistId, itemId, incomingInfo)
     const userObjectId = new ObjectId(incomingInfo.userId)
 
     let updateCondition = {}

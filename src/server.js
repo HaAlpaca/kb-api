@@ -11,9 +11,15 @@ import cookieParser from 'cookie-parser'
 import http from 'http'
 import socketIo from 'socket.io'
 import { inviteUserToBoardSocket } from './sockets/inviteUserToBoardSocket'
-import { MoveCardToDifferentColumnSocket } from './sockets/cardSocket'
+import {
+  cardSocket,
+  MoveCardToDifferentColumnSocket
+} from './sockets/cardSocket'
 import { columnSocket } from './sockets/columnSocket'
 import { START_CRON_JOB } from './config/cron'
+import { boardSocket } from './sockets/boardSocket'
+import { labelSocket } from './sockets/labelSocket'
+import { attachmentSocket } from './sockets/attachmentSocket'
 
 const START_SERVER = () => {
   const app = express()
@@ -39,7 +45,23 @@ const START_SERVER = () => {
   const io = socketIo(server, { cors: corsOptions })
   io.on('connection', socket => {
     inviteUserToBoardSocket(socket)
-    MoveCardToDifferentColumnSocket(socket)
+    // label socket
+    labelSocket.Delete(socket)
+    labelSocket.Create(socket)
+    labelSocket.Update(socket)
+    // attachment socket
+    attachmentSocket.Delete(socket)
+    attachmentSocket.Create(socket)
+    attachmentSocket.Update(socket)
+    // board socket
+    boardSocket.Delete(socket)
+    boardSocket.Create(socket)
+    boardSocket.Update(socket)
+    // card socket
+    cardSocket.Create(socket)
+    cardSocket.Delete(socket)
+    cardSocket.Move(socket)
+    // column socket
     columnSocket.Create(socket)
     columnSocket.Delete(socket)
     columnSocket.Move(socket)
