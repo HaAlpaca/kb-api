@@ -5,20 +5,38 @@ import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
 import { cardModel } from '~/models/cardModel'
+import { actionModel } from '~/models/actionModel'
 
 import { columnModel } from '~/models/columnModel'
-import { DEFAULT_ITEM_PER_PAGE, DEFAULT_PAGE } from '~/utils/constants'
+import {
+  ACTION_TYPES,
+  DEFAULT_ITEM_PER_PAGE,
+  DEFAULT_PAGE
+} from '~/utils/constants'
 const createNew = async (userId, reqBody) => {
   try {
-    // xu li tuy dac thu
+    // Xử lý dữ liệu đặc thù
     const newBoard = {
       ...reqBody,
       slug: slugify(reqBody.title)
     }
-    // goi tang model xu li ban ghi vao db
+
+    // Gọi tầng model để xử lý bản ghi vào DB
     const createdBoard = await boardModel.createNew(userId, newBoard)
     const getNewBoard = await boardModel.findOneById(createdBoard.insertedId)
-    // tra du lieu ve controller !!!! service luon co return
+
+    // // Ghi lại hành động vào actionModel
+    // await actionModel.createNew(userId, {
+    //   type: ACTION_TYPES.CREATE_BOARD,
+    //   description: `User ${} created a new board "${getNewBoard.title}"`,
+    //   targetType: 'board',
+    //   targetId: getNewBoard._id.toString(),
+    //   boardId: getNewBoard._id.toString(),
+    //   metadata: {
+    //     visibility: getNewBoard.type || 'private'
+    //   }
+    // })
+
     return getNewBoard
   } catch (error) {
     throw error
@@ -53,7 +71,6 @@ const getDetails = async (userId, boardId) => {
     })
     // Xóa cards sau khi đã phân loại vào columns
     delete resBoard.cards
-    // ******************************************************* Attachment
 
     return resBoard
   } catch (error) {
@@ -63,12 +80,17 @@ const getDetails = async (userId, boardId) => {
 
 const update = async (boardId, reqBody) => {
   try {
+    let updateBoard = {}
     const updateData = {
       ...reqBody,
       updatedAt: Date.now()
     }
+    if (updateData.incomingMemberInfo) {
+      updateBoard = await boardModel.updateMembers(boardId, updateData)
+    } else {
+      updateBoard = await boardModel.update(boardId, updateData)
+    }
     // console.log(updateData)
-    const updateBoard = await boardModel.update(boardId, updateData)
     return updateBoard
   } catch (error) {
     throw error

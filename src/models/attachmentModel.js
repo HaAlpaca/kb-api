@@ -100,7 +100,6 @@ const findOneById = async id => {
   }
 }
 
-// done
 const update = async (attachmentId, updateData) => {
   try {
     // loc field khong cho phep update
@@ -121,7 +120,6 @@ const update = async (attachmentId, updateData) => {
   }
 }
 
-// done
 const deleteOneById = async attachmentId => {
   try {
     const result = await GET_DB()

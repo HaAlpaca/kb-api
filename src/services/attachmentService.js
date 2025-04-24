@@ -9,7 +9,6 @@ import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
 import ApiError from '~/utils/ApiError'
 import { formatMimeType } from '~/utils/formatters'
 
-// khong auto detect file type
 const createNew = async (userId, reqBody, attachmentFile) => {
   try {
     const newAttachment = {
