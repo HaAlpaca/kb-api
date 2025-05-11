@@ -5,14 +5,9 @@ import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
 import { cardModel } from '~/models/cardModel'
-import { actionModel } from '~/models/actionModel'
 
 import { columnModel } from '~/models/columnModel'
-import {
-  ACTION_TYPES,
-  DEFAULT_ITEM_PER_PAGE,
-  DEFAULT_PAGE
-} from '~/utils/constants'
+import { DEFAULT_ITEM_PER_PAGE, DEFAULT_PAGE } from '~/utils/constants'
 const createNew = async (userId, reqBody) => {
   try {
     // Xử lý dữ liệu đặc thù
@@ -24,19 +19,6 @@ const createNew = async (userId, reqBody) => {
     // Gọi tầng model để xử lý bản ghi vào DB
     const createdBoard = await boardModel.createNew(userId, newBoard)
     const getNewBoard = await boardModel.findOneById(createdBoard.insertedId)
-
-    // // Ghi lại hành động vào actionModel
-    // await actionModel.createNew(userId, {
-    //   type: ACTION_TYPES.CREATE_BOARD,
-    //   description: `User ${} created a new board "${getNewBoard.title}"`,
-    //   targetType: 'board',
-    //   targetId: getNewBoard._id.toString(),
-    //   boardId: getNewBoard._id.toString(),
-    //   metadata: {
-    //     visibility: getNewBoard.type || 'private'
-    //   }
-    // })
-
     return getNewBoard
   } catch (error) {
     throw error
@@ -135,10 +117,58 @@ const getBoards = async (userId, page, itemPerPage, queryFilters) => {
   }
 }
 
+const getBoardAnalytics = async (userId, boardId, query) => {
+  try {
+    // Lấy thông tin board và các dữ liệu liên quan
+    const board = await boardModel.getDetailsBoardAnalytics(userId, boardId)
+    const allMembers = board.members.concat(board.owners)
+    let analytics = {}
+
+    if (board) {
+      analytics = allMembers.map(member => {
+        // Lọc các card mà thành viên tham gia
+        const memberCards = board.cards?.filter(card => {
+          const cardMemberIds = card?.memberIds?.map(id => id.toString())
+          return cardMemberIds?.includes(member._id.toString())
+        })
+
+        // Tính tổng số checklist items hoàn thành
+        const totalCompletedChecklists = memberCards?.reduce((total, card) => {
+          const completedItems = card.checklists?.reduce(
+            (checklistTotal, checklist) => {
+              return (
+                checklistTotal +
+                checklist.items.filter(item => item.isCompleted === true).length
+              )
+            },
+            0
+          )
+          return total + completedItems
+        }, 0)
+
+        return {
+          ...member,
+          totalCards: memberCards?.length || 0, // Tổng số card mà thành viên tham gia
+          totalCompletedCards:
+            memberCards?.filter(card => card.isComplete === true).length || 0, // Tổng số card hoàn thành
+          totalIncompleteCards:
+            memberCards?.filter(card => card.isComplete === false).length || 0, // Tổng số card chưa hoàn thành
+          totalCompletedChecklists: totalCompletedChecklists || 0 // Tổng số checklist items hoàn thành
+        }
+      })
+    }
+
+    return analytics
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const boardService = {
   createNew,
   getDetails,
   update,
   moveCardToDifferentColumn,
-  getBoards
+  getBoards,
+  getBoardAnalytics
 }

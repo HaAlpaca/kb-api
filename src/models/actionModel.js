@@ -2,68 +2,172 @@ import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
+import { userModel } from './userModel'
+import { boardModel } from './boardModel'
 import { ACTION_TYPES } from '~/utils/constants'
 
-// Define Collection (name & schema)
 const ACTION_COLLECTION_NAME = 'actions'
+
 const ACTION_COLLECTION_SCHEMA = Joi.object({
-  type: Joi.string()
+  assignerId: Joi.string()
     .required()
-    .valid(...Object.values(ACTION_TYPES)) // Chỉ cho phép các giá trị trong ACTION_TYPES
-    .trim()
-    .strict(),
-  description: Joi.string().required().trim().strict(),
-  targetType: Joi.string()
-    .required()
-    .trim()
-    .valid('card', 'column', 'board', 'comment', 'attachment', 'checklist'),
-  targetId: Joi.string()
     .pattern(OBJECT_ID_RULE)
     .message(OBJECT_ID_RULE_MESSAGE),
-
-  ownerActionId: Joi.string()
+  assigneeId: Joi.string()
+    .required()
     .pattern(OBJECT_ID_RULE)
-    .message(OBJECT_ID_RULE_MESSAGE), // người thực hiện
-  receiverIds: Joi.array()
-    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
-    .default([]), // người nhận thông báo (nếu có)
-
+    .message(OBJECT_ID_RULE_MESSAGE),
   boardId: Joi.string()
     .required()
     .pattern(OBJECT_ID_RULE)
     .message(OBJECT_ID_RULE_MESSAGE),
-
-  // Lưu các thông tin tuỳ chỉnh (vị trí ban đầu, tên cũ, trạng thái trước, v.v)
-  metadata: Joi.object().default({}).optional(),
-
-  actionName: Joi.string().optional().trim().max(255),
-
+  type: Joi.string()
+    .required()
+    .valid(...Object.values(ACTION_TYPES)),
+  metadata: Joi.object().default({}),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
   _destroy: Joi.boolean().default(false)
 })
 
-// chi dinh nhung field khong dc cap nhat
-const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
+const INVALID_UPDATE_FIELDS = ['_id', 'assignerId', 'assigneeId', 'createdAt']
 
 const validateBeforeCreate = async data => {
   return ACTION_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
-const createNew = async (userId, data) => {
+
+const createNew = async data => {
   try {
     const validData = await validateBeforeCreate(data)
-    const newActionToAdd = {
+
+    const newAction = {
       ...validData,
-      targetId: validData.targetId ? new ObjectId(validData.targetId) : null,
-      boardId: validData.boardId ? new ObjectId(validData.boardId) : null,
-      ownerActionId: new ObjectId(userId),
-      metadata: validData.metadata || {}, // Đảm bảo metadata luôn tồn tại
-      description: validData.description || '' // Đảm bảo description luôn tồn tại
+      assignerId: new ObjectId(validData.assignerId),
+      assigneeId: new ObjectId(validData.assigneeId),
+      boardId: new ObjectId(validData.boardId),
+      metadata: validData.metadata || {},
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      _destroy: false
     }
+
     const createdAction = await GET_DB()
       .collection(ACTION_COLLECTION_NAME)
-      .insertOne(newActionToAdd)
+      .insertOne(newAction)
+
     return createdAction
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const findOneById = async actionId => {
+  try {
+    const result = await GET_DB()
+      .collection(ACTION_COLLECTION_NAME)
+      .findOne({ _id: new ObjectId(actionId) })
+
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const findOne = async data => {
+  try {
+    const queryCondition = data
+    const result = await GET_DB()
+      .collection(ACTION_COLLECTION_NAME)
+      .aggregate([{ $match: { $and: queryCondition } }])
+      .toArray()
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const update = async (actionId, updateData) => {
+  try {
+    Object.keys(updateData).forEach(field => {
+      if (INVALID_UPDATE_FIELDS.includes(field)) delete updateData[field]
+    })
+
+    const result = await GET_DB()
+      .collection(ACTION_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(actionId) },
+        { $set: updateData },
+        { returnDocument: 'after' }
+      )
+
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const findAndUpdateMany = async (queryConditions, updateData) => {
+  try {
+    // Xoá các field không được phép cập nhật
+    Object.keys(updateData).forEach(field => {
+      if (INVALID_UPDATE_FIELDS.includes(field)) delete updateData[field]
+    })
+
+    const collection = GET_DB().collection(ACTION_COLLECTION_NAME)
+
+    // Cập nhật tất cả documents thoả điều kiện
+    await collection.updateMany({ $and: queryConditions }, { $set: updateData })
+
+    // Sau khi cập nhật, lấy lại toàn bộ documents đã được cập nhật
+    const updatedDocs = await collection
+      .find({ $and: queryConditions })
+      .toArray()
+
+    return updatedDocs
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const findByUser = async userId => {
+  try {
+    const queryCondition = [{ assigneeId: new ObjectId(userId) }]
+
+    const results = await GET_DB()
+      .collection(ACTION_COLLECTION_NAME)
+      .aggregate([
+        { $match: { $and: queryCondition } },
+        {
+          $lookup: {
+            from: userModel.USER_COLLECTION_NAME,
+            localField: 'assignerId',
+            foreignField: '_id',
+            as: 'assigner',
+            pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
+          }
+        },
+        {
+          $lookup: {
+            from: userModel.USER_COLLECTION_NAME,
+            localField: 'assigneeId',
+            foreignField: '_id',
+            as: 'assignee',
+            pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
+          }
+        },
+        {
+          $lookup: {
+            from: boardModel.BOARD_COLLECTION_NAME,
+            localField: 'boardId',
+            foreignField: '_id',
+            as: 'board',
+            pipeline: [{ $project: { _destroy: 0 } }]
+          }
+        },
+        { $sort: { updatedAt: 1, createdAt: 1 } }
+      ])
+      .toArray()
+    return results
   } catch (error) {
     throw new Error(error)
   }
@@ -72,6 +176,10 @@ const createNew = async (userId, data) => {
 export const actionModel = {
   ACTION_COLLECTION_NAME,
   ACTION_COLLECTION_SCHEMA,
-  createNew
+  createNew,
+  findOneById,
+  update,
+  findAndUpdateMany,
+  findByUser,
+  findOne
 }
-

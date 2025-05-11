@@ -1,18 +1,13 @@
 import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
-import {
-  ACTION_TYPES,
-  BOARD_TYPES,
-  CARD_MEMBER_ACTION
-} from '~/utils/constants'
+import { BOARD_TYPES, CARD_MEMBER_ACTION } from '~/utils/constants'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { columnModel } from './columnModel'
 import { cardModel } from './cardModel'
 import { pageSkipValue } from '~/utils/algorithms'
 import { userModel } from './userModel'
 import { labelModel } from './labelModel'
-import { actionModel } from './actionModel'
 
 // Define Collection (name & schema)
 const BOARD_COLLECTION_NAME = 'boards'
@@ -43,7 +38,21 @@ const BOARD_COLLECTION_SCHEMA = Joi.object({
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
-  _destroy: Joi.boolean().default(false)
+  _destroy: Joi.boolean().default(false),
+
+  // automation
+  // khi card hoàn thành thì chuyển sang cột cụ thể
+  isCompleteCardTrigger: Joi.boolean().default(false),
+  completeCardTriggerColumnId: Joi.string()
+    .pattern(OBJECT_ID_RULE)
+    .message(OBJECT_ID_RULE_MESSAGE)
+    .default(null),
+  // khi card hết hạn thì chuyển sang cột cụ thể
+  isOverdueCardTrigger: Joi.boolean().default(false),
+  overdueCardColumnId: Joi.string()
+    .pattern(OBJECT_ID_RULE)
+    .message(OBJECT_ID_RULE_MESSAGE)
+    .default(null)
 })
 // chi dinh nhung field khong dc cap nhat
 const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
@@ -338,6 +347,82 @@ const updateMembers = async (boardId, updateData) => {
   }
 }
 
+const getDetailsBoardAnalytics = async (userId, boardId) => {
+  try {
+    const queryCondition = [
+      { _id: new ObjectId(boardId) },
+      { _destroy: false },
+      {
+        $or: [
+          { ownerIds: { $all: [new ObjectId(userId)] } },
+          { memberIds: { $all: [new ObjectId(userId)] } }
+        ]
+      }
+    ]
+    // con phan aggregate chung ta phai update
+    const result = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .aggregate([
+        { $match: { $and: queryCondition } },
+        {
+          $lookup: {
+            from: cardModel.CARD_COLLECTION_NAME,
+            let: { boardId: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$boardId', '$$boardId'] }
+                }
+              },
+              {
+                $lookup: {
+                  from: 'checklists',
+                  localField: 'cardChecklistIds',
+                  foreignField: '_id',
+                  as: 'checklists'
+                }
+              }
+            ],
+            as: 'cards'
+          }
+        },
+        {
+          $lookup: {
+            from: userModel.USER_COLLECTION_NAME,
+            localField: 'ownerIds',
+            foreignField: '_id',
+            as: 'owners',
+            // pipeline: để xử lí 1 hoặc nhiều luồng 1 lúc
+            //  $project chỉ định vài field không muốn lấy bằng cách gán = 0
+            pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
+          }
+        },
+        {
+          $lookup: {
+            from: userModel.USER_COLLECTION_NAME,
+            localField: 'memberIds',
+            foreignField: '_id',
+            as: 'members',
+            pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
+          }
+        }
+      ])
+      .toArray()
+    return result[0] || null
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const getAnalytics = async (boardId, memberIds, queryFilters) => {
+  try {
+    const result = []
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const boardModel = {
   BOARD_COLLECTION_NAME,
   BOARD_COLLECTION_SCHEMA,
@@ -349,9 +434,13 @@ export const boardModel = {
   update,
   pullColumnOrderIds,
   getBoards,
-  pushMemberIds
+  pushMemberIds,
+  getDetailsBoardAnalytics
 }
 
 //board 6710c1dea34456a8d94373bc
 //column 6710c5a9a2f7c59a026cddf6
 //card 6710c678a2f7c59a026cddf8
+
+
+

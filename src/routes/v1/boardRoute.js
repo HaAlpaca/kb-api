@@ -25,4 +25,9 @@ Router.route('/supports/moving_card').put(
   boardController.moveCardToDifferentColumn
 ) // update
 
+Router.route('/analytics/:id').get(
+  authMiddleware.isAuthorize,
+  boardController.getBoardAnalytics
+)
+
 export const boardRoute = Router

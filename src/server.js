@@ -11,15 +11,13 @@ import cookieParser from 'cookie-parser'
 import http from 'http'
 import socketIo from 'socket.io'
 import { inviteUserToBoardSocket } from './sockets/inviteUserToBoardSocket'
-import {
-  cardSocket,
-  MoveCardToDifferentColumnSocket
-} from './sockets/cardSocket'
+import { cardSocket } from './sockets/cardSocket'
 import { columnSocket } from './sockets/columnSocket'
 import { START_CRON_JOB } from './config/cron'
 import { boardSocket } from './sockets/boardSocket'
 import { labelSocket } from './sockets/labelSocket'
 import { attachmentSocket } from './sockets/attachmentSocket'
+import { voiceRtcSocket } from './sockets/voiceRtcSocket'
 
 const START_SERVER = () => {
   const app = express()
@@ -44,6 +42,9 @@ const START_SERVER = () => {
   // khởi tạo socket io với server và cors
   const io = socketIo(server, { cors: corsOptions })
   io.on('connection', socket => {
+    // demo voice rtc
+    voiceRtcSocket(socket)
+
     inviteUserToBoardSocket(socket)
     // label socket
     labelSocket.Delete(socket)
@@ -61,6 +62,7 @@ const START_SERVER = () => {
     cardSocket.Create(socket)
     cardSocket.Delete(socket)
     cardSocket.Move(socket)
+    cardSocket.Update(socket)
     // column socket
     columnSocket.Create(socket)
     columnSocket.Delete(socket)

@@ -17,6 +17,17 @@ const getBoards = async (req, res, next) => {
     next(error)
   }
 }
+const getBoardAnalytics = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const boardId = req.params.id
+    const query = req.query
+    const board = await boardService.getBoardAnalytics(userId, boardId, query)
+    res.status(StatusCodes.OK).json(board)
+  } catch (error) {
+    next(error)
+  }
+}
 
 const createNew = async (req, res, next) => {
   try {
@@ -60,5 +71,6 @@ export const boardController = {
   createNew,
   getDetails,
   moveCardToDifferentColumn,
-  update
+  update,
+  getBoardAnalytics
 }

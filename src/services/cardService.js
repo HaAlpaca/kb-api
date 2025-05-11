@@ -5,6 +5,12 @@ import { columnModel } from '~/models/columnModel'
 import { StatusCodes } from 'http-status-codes'
 import ApiError from '~/utils/ApiError'
 import { attachmentService } from './attachmentService'
+import {
+  ACTION_TYPES,
+  CARD_MEMBER_ACTION,
+  OWNER_ACTION_TARGET
+} from '~/utils/constants'
+import { actionModel } from '~/models/actionModel'
 
 const getDetails = async (userId, cardId) => {
   try {
@@ -70,11 +76,23 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
       }
       updatedCard = await cardModel.unshiftNewComment(cardId, commentData)
     } else if (updateData.incomingMemberInfo) {
-      updatedCard = await cardModel.updateMembers(
-        cardId,
-        updateData.incomingMemberInfo
-      )
-      // console.log(updatedCard)
+      const incoming = updateData.incomingMemberInfo
+      updatedCard = await cardModel.updateMembers(cardId, incoming)
+
+      if (updateData.incomingMemberInfo.action === CARD_MEMBER_ACTION.ADD) {
+        await actionModel.createNew({
+          assignerId: userInfo._id,
+          assigneeId: incoming.userId,
+          boardId: updatedCard.boardId.toString(),
+          type: ACTION_TYPES.ASSIGN_CARD,
+          metadata: {
+            ownerTargetType: OWNER_ACTION_TARGET.COLUMN,
+            ownerTargetId: updatedCard.columnId.toString(),
+            targetId: updatedCard._id.toString(),
+            dueDate: updatedCard.dueDate ? updatedCard.dueDate : null
+          }
+        })
+      }
     } else if (updateData.updateLabels) {
       updatedCard = await cardModel.updateLabels(
         cardId,
@@ -114,16 +132,6 @@ const toogleCardComplete = async (userId, cardId) => {
       cardId,
       card.isComplete
     )
-    // if (updatedCard.isComplete) {
-    //   const actionMarkCompleteCard = await actionModel.createNew(userId, {
-    //     type: 'mark_complete_card',
-    //     description: `Card "${updatedCard.title}" was marked as completed by ${updatedCard.displayName}`,
-    //     targetType: 'card',
-    //     targetId: card._id.toString(),
-    //     boardId: card.boardId.toString()
-    //   })
-    // }
-
     return updatedCard
   } catch (error) {
     throw error

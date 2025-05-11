@@ -20,8 +20,16 @@ const Move = socket => {
   })
 }
 
+const Update = socket => {
+  // Listen event khi client emit FE_UPDATE_CARD
+  socket.on('FE_UPDATE_CARD', updatedCard => {
+    socket.broadcast.emit('BE_UPDATE_CARD', updatedCard)
+  })
+}
+
 export const cardSocket = {
   Delete,
   Create,
-  Move
+  Move,
+  Update
 }
