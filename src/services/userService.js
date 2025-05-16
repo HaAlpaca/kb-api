@@ -10,6 +10,7 @@ import { BrevoProvider } from '~/providers/BrevoProvider'
 import { env } from '~/config/environment'
 import { JwtProvider } from '~/providers/JwtProvider'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
+
 const createNew = async reqBody => {
   try {
     //check email
@@ -31,8 +32,7 @@ const createNew = async reqBody => {
     const getNewUser = await userModel.findOneById(createdUser.insertedId)
     // send email
     const verificationLink = `${WEBSITE_DOMAIN}/account/verification?email=${getNewUser.email}&token=${getNewUser.verifyToken}`
-    const customSubject =
-      'KanbanBoard: Please verify your email before using our service!'
+    const customSubject = 'KanbanBoard: Please verify your email before using our service!'
     const htmlContent = `
         <h3>Here is your verification link:</h3>
         <h3>${verificationLink}</h3>
@@ -52,13 +52,8 @@ const verifyAccount = async reqBody => {
     if (!existUser) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found')
     }
-    if (existUser.isActive)
-      throw new ApiError(
-        StatusCodes.NOT_ACCEPTABLE,
-        'Your account is already active!'
-      )
-    if (reqBody.token !== existUser.verifyToken)
-      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Token is invalid!')
+    if (existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is already active!')
+    if (reqBody.token !== existUser.verifyToken) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Token is invalid!')
     // OK thi update lai thong tin user
     const updateData = {
       isActive: true,
@@ -78,15 +73,9 @@ const login = async reqBody => {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found')
     }
     if (!existUser.isActive)
-      throw new ApiError(
-        StatusCodes.NOT_ACCEPTABLE,
-        'Your account is not active! Verify account in mailbox!'
-      )
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not active! Verify account in mailbox!')
     if (!bcryptjs.compareSync(reqBody.password, existUser.password)) {
-      throw new ApiError(
-        StatusCodes.NOT_ACCEPTABLE,
-        'Your email or password is incorrect!'
-      )
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your email or password is incorrect!')
     }
     // moi thu OK => tao token dang nhap
     const userInfo = {
@@ -113,10 +102,7 @@ const login = async reqBody => {
 
 const refreshToken = async clientRefreshToken => {
   try {
-    const refreshTokenDecoded = await JwtProvider.verifyToken(
-      clientRefreshToken,
-      env.REFRESH_TOKEN_SECRET_SIGNATURE
-    )
+    const refreshTokenDecoded = await JwtProvider.verifyToken(clientRefreshToken, env.REFRESH_TOKEN_SECRET_SIGNATURE)
     // xử lí những thông tin unique
     const userInfo = {
       _id: refreshTokenDecoded._id,
@@ -142,21 +128,14 @@ const update = async (userId, reqBody, userAvatarFile) => {
     if (!existUser) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found')
     }
-    if (!existUser.isActive)
-      throw new ApiError(
-        StatusCodes.NOT_ACCEPTABLE,
-        'Your account is not active!'
-      )
+    if (!existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not active!')
 
     let updatedUser = {}
     // change password
     if (reqBody.current_password && reqBody.new_password) {
       // check current password
       if (!bcryptjs.compareSync(reqBody.current_password, existUser.password)) {
-        throw new ApiError(
-          StatusCodes.NOT_ACCEPTABLE,
-          'Your current password is incorrect!'
-        )
+        throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your current password is incorrect!')
       }
       // update password
 
@@ -165,10 +144,7 @@ const update = async (userId, reqBody, userAvatarFile) => {
       })
     } else if (userAvatarFile) {
       // update avatar
-      const uploadResult = await CloudinaryProvider.streamUpload(
-        userAvatarFile.buffer,
-        'KanbanBoard/images'
-      )
+      const uploadResult = await CloudinaryProvider.streamUpload(userAvatarFile.buffer, 'KanbanBoard/images')
       // console.log('uploadResult: ', uploadResult)
       updatedUser = await userModel.update(userId, {
         avatar: uploadResult.secure_url

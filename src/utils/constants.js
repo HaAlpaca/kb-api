@@ -15,9 +15,7 @@ export const BOARD_TYPES = {
   PRIVATE: 'private'
 }
 export const WEBSITE_DOMAIN =
-  env.BUILD_MODE === 'production'
-    ? env.WEBSITE_DOMAIN_PRODUCTION
-    : env.WEBSITE_DOMAIN_DEVELOPMENT
+  env.BUILD_MODE === 'production' ? env.WEBSITE_DOMAIN_PRODUCTION : env.WEBSITE_DOMAIN_DEVELOPMENT
 
 export const DEFAULT_PAGE = 1
 export const DEFAULT_ITEM_PER_PAGE = 12
@@ -49,3 +47,39 @@ export const OWNER_ACTION_TARGET = {
   COLUMN: 'columns',
   BOARD: 'boards'
 }
+export const ROLE_NAME = {
+  ADMIN: 'admin',
+  MODERATOR: 'moderator',
+  USER: 'user'
+}
+
+export const PERMISSION_NAME = {
+  // member
+  INVITE_MEMBER: 'invite_member',
+  REMOVE_MEMBER: 'remove_member',
+  UPDATE_MEMBER_ROLE: 'update_member_role',
+  UPDATE_MEMBER_PERMISSION: 'update_member_permission',
+  // board
+  READ_BOARD: 'read_board',
+  UPDATE_BOARD: 'update_board',
+  DELETE_BOARD: 'delete_board',
+  BOARD_ANALYTICS: 'board_analytics',
+  // COLUMN
+  EDIT_COLUMN: 'edit_column',
+  // CARD
+  READ_CARD: 'read_card',
+  CREATE_CARD: 'create_card',
+  UPDATE_CARD: 'update_card',
+  DELETE_CARD: 'delete_card',
+  // LABEL
+  CREATE_LABEL: 'create_label',
+  UPDATE_LABEL: 'update_label',
+  DELETE_LABEL: 'delete_label',
+  // CHECKLIST
+  CREATE_CHECKLIST: 'create_checklist',
+  UPDATE_CHECKLIST: 'update_checklist',
+  DELETE_CHECKLIST: 'delete_checklist',
+  // CARD ASSIGN
+  UPDATE_CARD_ASSIGN: 'update_card_assign'
+}
+

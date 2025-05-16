@@ -1,11 +1,11 @@
 import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
-import { BOARD_TYPES, CARD_MEMBER_ACTION } from '~/utils/constants'
+import { BOARD_TYPES, CARD_MEMBER_ACTION, PERMISSION_NAME, ROLE_NAME } from '~/utils/constants'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { columnModel } from './columnModel'
 import { cardModel } from './cardModel'
-import { pageSkipValue } from '~/utils/algorithms'
+import { generateRole, pageSkipValue } from '~/utils/algorithms'
 import { userModel } from './userModel'
 import { labelModel } from './labelModel'
 
@@ -17,42 +17,42 @@ const BOARD_COLLECTION_SCHEMA = Joi.object({
   description: Joi.string().required().min(3).max(256).trim().strict(),
 
   type: Joi.string().valid(BOARD_TYPES.PUBLIC, BOARD_TYPES.PRIVATE).required(),
-  cover: Joi.string().default(
-    'https://images.unsplash.com/photo-1669236712949-b58f9758898d'
-  ),
+  cover: Joi.string().default('https://images.unsplash.com/photo-1669236712949-b58f9758898d'),
   // Lưu ý các item trong mảng columnOrderIds là ObjectId nên cần thêm pattern cho chuẩn nhé, (lúc quay video số 57 mình quên nhưng sang đầu video số 58 sẽ có nhắc lại về cái này.)
-  columnOrderIds: Joi.array()
-    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
-    .default([]),
+  columnOrderIds: Joi.array().items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)).default([]),
   // Admin cua board
-  ownerIds: Joi.array()
-    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
-    .default([]),
+  ownerIds: Joi.array().items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)).default([]),
   // member cua board
-  memberIds: Joi.array()
-    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
-    .default([]),
-  boardLabelIds: Joi.array()
-    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
+  memberIds: Joi.array().items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)).default([]),
+  boardLabelIds: Joi.array().items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)).default([]),
+
+  // role base
+  usersRole: Joi.array()
+    .items(
+      Joi.object({
+        userId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+        role: Joi.string()
+          .valid(...Object.values(ROLE_NAME))
+          .required(),
+        permissions: Joi.array()
+          .items(...Object.values(PERMISSION_NAME))
+          .default([])
+      })
+    )
     .default([]),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
-  _destroy: Joi.boolean().default(false),
+  _destroy: Joi.boolean().default(false)
 
-  // automation
-  // khi card hoàn thành thì chuyển sang cột cụ thể
-  isCompleteCardTrigger: Joi.boolean().default(false),
-  completeCardTriggerColumnId: Joi.string()
-    .pattern(OBJECT_ID_RULE)
-    .message(OBJECT_ID_RULE_MESSAGE)
-    .default(null),
-  // khi card hết hạn thì chuyển sang cột cụ thể
-  isOverdueCardTrigger: Joi.boolean().default(false),
-  overdueCardColumnId: Joi.string()
-    .pattern(OBJECT_ID_RULE)
-    .message(OBJECT_ID_RULE_MESSAGE)
-    .default(null)
+  // // automation trigger
+
+  // // khi card hoàn thành thì chuyển sang cột cụ thể
+  // isCompleteCardTrigger: Joi.boolean().default(false),
+  // completeCardTriggerColumnId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE).default(null),
+  // // khi card hết hạn thì chuyển sang cột cụ thể
+  // isOverdueCardTrigger: Joi.boolean().default(false),
+  // overdueCardColumnId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE).default(null)
 })
 // chi dinh nhung field khong dc cap nhat
 const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
@@ -61,16 +61,62 @@ const validateBeforeCreate = async data => {
   return BOARD_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
+const getRolePermissions = async (userId, boardId) => {
+  const result = await GET_DB()
+    .collection(BOARD_COLLECTION_NAME)
+    .findOne(
+      {
+        _id: new ObjectId(boardId),
+        'usersRole.userId': new ObjectId(userId) // Tìm userId trong mảng usersRole
+      },
+      {
+        projection: {
+          'usersRole.$': 1 // Chỉ lấy phần tử trong mảng usersRole có userId khớp
+        }
+      }
+    )
+
+  // Kiểm tra xem có kết quả không và lấy ra role và permissions
+  if (result && result.usersRole && result.usersRole.length > 0) {
+    return result.usersRole[0]
+  }
+  return null
+}
+
+const updateUserRole = async (userId, boardId, role) => {
+  try {
+    const newRoleData = generateRole(userId, role)
+
+    const result = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .updateOne(
+        {
+          _id: new ObjectId(boardId),
+          'usersRole.userId': new ObjectId(userId)
+        },
+        {
+          $set: {
+            'usersRole.$': newRoleData
+          }
+        }
+      )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 const createNew = async (userId, data) => {
   try {
+    // handle valid data
     const validData = await validateBeforeCreate(data)
+    // add role to owner
     const newBoardToAdd = {
       ...validData,
-      ownerIds: [new ObjectId(userId)]
+      ownerIds: [new ObjectId(userId)],
+      usersRole: [generateRole(userId, ROLE_NAME.ADMIN)]
     }
-    const createdBoard = await GET_DB()
-      .collection(BOARD_COLLECTION_NAME)
-      .insertOne(newBoardToAdd)
+    const createdBoard = await GET_DB().collection(BOARD_COLLECTION_NAME).insertOne(newBoardToAdd)
     return createdBoard
   } catch (error) {
     throw new Error(error)
@@ -93,10 +139,7 @@ const getDetails = async (userId, boardId) => {
       { _id: new ObjectId(boardId) },
       { _destroy: false },
       {
-        $or: [
-          { ownerIds: { $all: [new ObjectId(userId)] } },
-          { memberIds: { $all: [new ObjectId(userId)] } }
-        ]
+        $or: [{ ownerIds: { $all: [new ObjectId(userId)] } }, { memberIds: { $all: [new ObjectId(userId)] } }]
       }
     ]
     // con phan aggregate chung ta phai update
@@ -193,7 +236,12 @@ const pushMemberIds = async (boardId, userId) => {
       .collection(BOARD_COLLECTION_NAME)
       .findOneAndUpdate(
         { _id: new ObjectId(boardId) },
-        { $push: { memberIds: new ObjectId(userId) } },
+        {
+          $push: {
+            memberIds: new ObjectId(userId),
+            usersRole: generateRole(userId, ROLE_NAME.USER)
+          }
+        },
         { returnDocument: 'after' }
       )
     return result
@@ -206,20 +254,12 @@ const update = async (boardId, updateData) => {
   try {
     // loc field khong cho phep update
     Object.keys(updateData).forEach(fieldName => {
-      if (INVALID_UPDATE_FIELDS.includes(fieldName))
-        delete updateData[fieldName]
+      if (INVALID_UPDATE_FIELDS.includes(fieldName)) delete updateData[fieldName]
     })
-    if (updateData.columnOrderIds)
-      updateData.columnOrderIds = updateData.columnOrderIds.map(
-        _id => new ObjectId(_id)
-      )
+    if (updateData.columnOrderIds) updateData.columnOrderIds = updateData.columnOrderIds.map(_id => new ObjectId(_id))
     const result = await GET_DB()
       .collection(BOARD_COLLECTION_NAME)
-      .findOneAndUpdate(
-        { _id: new ObjectId(boardId) },
-        { $set: updateData },
-        { returnDocument: 'after' }
-      )
+      .findOneAndUpdate({ _id: new ObjectId(boardId) }, { $set: updateData }, { returnDocument: 'after' })
     return result
   } catch (error) {
     throw new Error(error)
@@ -249,10 +289,7 @@ const getBoards = async (userId, page, itemPerPage, queryFilters) => {
       { _destroy: false },
       // userId phai la owner id va user id
       {
-        $or: [
-          { ownerIds: { $all: [new ObjectId(userId)] } },
-          { memberIds: { $all: [new ObjectId(userId)] } }
-        ]
+        $or: [{ ownerIds: { $all: [new ObjectId(userId)] } }, { memberIds: { $all: [new ObjectId(userId)] } }]
       }
     ]
     // queryFilters for search boards title
@@ -353,10 +390,7 @@ const getDetailsBoardAnalytics = async (userId, boardId) => {
       { _id: new ObjectId(boardId) },
       { _destroy: false },
       {
-        $or: [
-          { ownerIds: { $all: [new ObjectId(userId)] } },
-          { memberIds: { $all: [new ObjectId(userId)] } }
-        ]
+        $or: [{ ownerIds: { $all: [new ObjectId(userId)] } }, { memberIds: { $all: [new ObjectId(userId)] } }]
       }
     ]
     // con phan aggregate chung ta phai update
@@ -414,14 +448,14 @@ const getDetailsBoardAnalytics = async (userId, boardId) => {
   }
 }
 
-const getAnalytics = async (boardId, memberIds, queryFilters) => {
-  try {
-    const result = []
-    return result
-  } catch (error) {
-    throw new Error(error)
-  }
-}
+// const getAnalytics = async (boardId, memberIds, queryFilters) => {
+//   try {
+//     const result = []
+//     return result
+//   } catch (error) {
+//     throw new Error(error)
+//   }
+// }
 
 export const boardModel = {
   BOARD_COLLECTION_NAME,
@@ -435,12 +469,11 @@ export const boardModel = {
   pullColumnOrderIds,
   getBoards,
   pushMemberIds,
-  getDetailsBoardAnalytics
+  getDetailsBoardAnalytics,
+  getRolePermissions,
+  updateUserRole
 }
 
 //board 6710c1dea34456a8d94373bc
 //column 6710c5a9a2f7c59a026cddf6
 //card 6710c678a2f7c59a026cddf8
-
-
-
