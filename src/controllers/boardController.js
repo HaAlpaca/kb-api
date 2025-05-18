@@ -37,7 +37,23 @@ const getDetails = async (req, res, next) => {
   try {
     const userId = req.jwtDecoded._id
     const boardId = req.params.id
-    const board = await boardService.getDetails(userId, boardId)
+
+    // Lấy các tham số lọc từ query string
+    const { members, startDate, endDate, isComplete } = req.query
+
+    // Tạo object chứa các filters
+    const queryFilters = {
+      ...(members && { members: members.split(',') }), // Lọc theo danh sách thành viên
+      ...(startDate && { startDate: parseInt(startDate, 10) }), // Lọc theo ngày bắt đầu
+      ...(endDate && { endDate: parseInt(endDate, 10) }), // Lọc theo ngày kết thúc
+      ...(isComplete === 'true' && { isComplete: true }), // Lọc card hoàn thành
+      ...(isComplete === 'false' && { isComplete: false }) // Lọc card chưa hoàn thành
+    }
+
+    // Gọi tầng service để lấy dữ liệu
+    const board = await boardService.getDetails(userId, boardId, queryFilters)
+
+    // Trả kết quả về client
     res.status(StatusCodes.OK).json(board)
   } catch (error) {
     next(error)
@@ -75,7 +91,6 @@ const updateUserRole = async (req, res, next) => {
     const userId = req.body.userId
     const role = req.body.role
     const result = await boardService.updateUserRole(userId, boardId, role)
-    console.log(result)
     res.status(StatusCodes.OK).json(result)
   } catch (error) {
     next(error)

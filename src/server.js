@@ -72,9 +72,7 @@ const START_SERVER = () => {
     // dùng server.listen vì server bọc app rồi
     server.listen(process.env.PORT, () => {
       // eslint-disable-next-line no-console
-      console.log(
-        `PRODUCTION: Hi ${env.AUTHOR}, server is running successfully at PORT: ${process.env.PORT}`
-      )
+      console.log(`PRODUCTION: Hi ${env.AUTHOR}, server is running successfully at PORT: ${process.env.PORT}`)
     })
   } else {
     // dùng server.listen vì server bọc app rồi

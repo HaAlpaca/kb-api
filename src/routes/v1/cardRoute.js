@@ -27,9 +27,8 @@ Router.route('/:id')
     cardController.update
   )
 Router.route('/complete/:id').put(
-  rbacMiddleware.isValidPermission([PERMISSION_NAME.UPDATE_CARD]),
   authMiddleware.isAuthorize,
-  // cardValidation.update,
+  rbacMiddleware.isValidPermission([PERMISSION_NAME.UPDATE_CARD]),
   cardController.toogleCardComplete
 )
 

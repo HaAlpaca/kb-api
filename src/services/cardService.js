@@ -5,11 +5,7 @@ import { columnModel } from '~/models/columnModel'
 import { StatusCodes } from 'http-status-codes'
 import ApiError from '~/utils/ApiError'
 import { attachmentService } from './attachmentService'
-import {
-  ACTION_TYPES,
-  CARD_MEMBER_ACTION,
-  OWNER_ACTION_TARGET
-} from '~/utils/constants'
+import { ACTION_TYPES, CARD_MEMBER_ACTION, OWNER_ACTION_TARGET } from '~/utils/constants'
 import { actionModel } from '~/models/actionModel'
 
 const getDetails = async (userId, cardId) => {
@@ -56,11 +52,7 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
       //   'KanbanBoard/images'
       // )
       // attachment to card
-      const attachment = await attachmentService.createNew(
-        userInfo._id,
-        { cardId: cardId },
-        cardCoverFile
-      )
+      const attachment = await attachmentService.createNew(userInfo._id, { cardId: cardId }, cardCoverFile)
 
       // console.log('uploadResult: ', uploadResult)
       updatedCard = await cardModel.update(cardId, {
@@ -94,25 +86,13 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
         })
       }
     } else if (updateData.updateLabels) {
-      updatedCard = await cardModel.updateLabels(
-        cardId,
-        updateData.updateLabels
-      )
+      updatedCard = await cardModel.updateLabels(cardId, updateData.updateLabels)
     } else if (updateData.updateAttachments) {
-      updatedCard = await cardModel.updateAttachments(
-        cardId,
-        updateData.updateAttachments
-      )
+      updatedCard = await cardModel.updateAttachments(cardId, updateData.updateAttachments)
     } else if (updateData.updateDueDate) {
-      updatedCard = await cardModel.updateDueDate(
-        cardId,
-        updateData.updateDueDate
-      )
+      updatedCard = await cardModel.updateDueDate(cardId, updateData.updateDueDate)
     } else if (updateData.updateChecklists) {
-      updatedCard = await cardModel.updateChecklists(
-        cardId,
-        updateData.updateChecklists
-      )
+      updatedCard = await cardModel.updateChecklists(cardId, updateData.updateChecklists)
     } else {
       updatedCard = await cardModel.update(cardId, updateData)
     }
@@ -128,10 +108,8 @@ const toogleCardComplete = async (userId, cardId) => {
     const card = await cardModel.getDetails(userId, cardId)
     if (!card) throw new ApiError(StatusCodes.NOT_FOUND, 'Card not found!')
 
-    const updatedCard = await cardModel.toogleCardComplete(
-      cardId,
-      card.isComplete
-    )
+    const updatedCard = await cardModel.toogleCardComplete(cardId, card.isComplete)
+
     return updatedCard
   } catch (error) {
     throw error

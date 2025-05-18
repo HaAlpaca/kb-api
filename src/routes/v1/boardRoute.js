@@ -11,7 +11,7 @@ Router.route('/')
 Router.route('/:id')
   .get(
     authMiddleware.isAuthorize,
-    rbacMiddleware.isValidPermission([PERMISSION_NAME.READ_BOARD]),
+    // rbacMiddleware.isValidPermission([PERMISSION_NAME.READ_BOARD]),
     boardController.getDetails
   )
   .put(

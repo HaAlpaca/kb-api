@@ -133,7 +133,7 @@ const findOneById = async id => {
     throw new Error(error)
   }
 }
-const getDetails = async (userId, boardId) => {
+const getDetails = async (userId, boardId, queryFilters) => {
   try {
     const queryCondition = [
       { _id: new ObjectId(boardId) },
@@ -142,7 +142,40 @@ const getDetails = async (userId, boardId) => {
         $or: [{ ownerIds: { $all: [new ObjectId(userId)] } }, { memberIds: { $all: [new ObjectId(userId)] } }]
       }
     ]
-    // con phan aggregate chung ta phai update
+
+    const cardFilters = []
+
+    // Áp dụng các bộ lọc cho card
+    if (queryFilters) {
+      if (queryFilters.members) {
+        cardFilters.push({
+          memberIds: { $in: queryFilters.members.map(id => new ObjectId(id)) } // Lọc theo danh sách thành viên
+        })
+      }
+      if (queryFilters.startDate && queryFilters.endDate) {
+        cardFilters.push({
+          dueDate: {
+            $gte: queryFilters.startDate, // Lọc từ timestamp startDate
+            $lte: queryFilters.endDate // Lọc đến timestamp endDate
+          }
+        })
+      } else if (queryFilters.startDate) {
+        cardFilters.push({
+          dueDate: { $gte: queryFilters.startDate } // Chỉ lọc từ timestamp startDate
+        })
+      } else if (queryFilters.endDate) {
+        cardFilters.push({
+          dueDate: { $lte: queryFilters.endDate } // Chỉ lọc đến timestamp endDate
+        })
+      }
+
+      if (queryFilters.isComplete !== undefined) {
+        cardFilters.push({
+          isComplete: queryFilters.isComplete // Lọc theo trạng thái hoàn thành
+        })
+      }
+    }
+
     const result = await GET_DB()
       .collection(BOARD_COLLECTION_NAME)
       .aggregate([
@@ -162,7 +195,8 @@ const getDetails = async (userId, boardId) => {
             pipeline: [
               {
                 $match: {
-                  $expr: { $eq: ['$boardId', '$$boardId'] }
+                  $expr: { $eq: ['$boardId', '$$boardId'] },
+                  ...(cardFilters.length > 0 && { $and: cardFilters }) // Áp dụng bộ lọc cho card
                 }
               },
               {
@@ -183,8 +217,6 @@ const getDetails = async (userId, boardId) => {
             localField: 'ownerIds',
             foreignField: '_id',
             as: 'owners',
-            // pipeline: để xử lí 1 hoặc nhiều luồng 1 lúc
-            //  $project chỉ định vài field không muốn lấy bằng cách gán = 0
             pipeline: [{ $project: { password: 0, verifyToken: 0 } }]
           }
         },
@@ -208,7 +240,7 @@ const getDetails = async (userId, boardId) => {
         }
       ])
       .toArray()
-    // console.log(result)
+
     return result[0] || null
   } catch (error) {
     throw new Error(error)
