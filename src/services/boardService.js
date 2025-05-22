@@ -336,20 +336,21 @@ const archiveBoard = async (userId, boardId) => {
 
 const leaveBoard = async (userId, boardId) => {
   try {
-    // Xóa người dùng khỏi board
-    const board = await boardModel.leaveBoard(userId, boardId)
-    if (!board) {
-      throw new Error('Failed to leave the board or board not found.')
-    }
+    // Lấy tất cả các card thuộc board
+    const cards = await cardModel.find({ boardId: new ObjectId(boardId) })
+    const cardIds = cards.map(card => card._id)
 
     // Xóa người dùng khỏi tất cả các card trong board
-    await cardModel.updateMany({ boardId: new ObjectId(boardId) }, { $pull: { memberIds: new ObjectId(userId) } })
+    await cardModel.updateMany({ _id: { $in: cardIds } }, { $pull: { memberIds: new ObjectId(userId) } })
 
-    // Xóa người dùng khỏi tất cả các checklist trong board
+    // Xóa người dùng khỏi tất cả các checklist liên quan đến các card
     await checklistModel.updateMany(
-      { boardId: new ObjectId(boardId) },
+      { cardId: { $in: cardIds.map(id => id.toString()) } },
       { $pull: { assignedUserIds: new ObjectId(userId) } }
     )
+
+    // Cuối cùng, xóa người dùng khỏi board
+    const board = await boardModel.leaveBoard(userId, boardId)
 
     return board
   } catch (error) {
