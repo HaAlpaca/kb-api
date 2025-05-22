@@ -6,9 +6,11 @@ import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
 import { cardModel } from '~/models/cardModel'
+import { checklistModel } from '~/models/checklistModel'
 
 import { columnModel } from '~/models/columnModel'
-import { DEFAULT_ITEM_PER_PAGE, DEFAULT_PAGE, ROLE_NAME } from '~/utils/constants'
+import { BOARD_TYPES, DEFAULT_ITEM_PER_PAGE, DEFAULT_PAGE, ROLE_NAME } from '~/utils/constants'
+import { ObjectId } from 'mongodb'
 const createNew = async (userId, reqBody) => {
   try {
     // Xử lý dữ liệu đặc thù
@@ -111,39 +113,117 @@ const getBoards = async (userId, page, itemPerPage, queryFilters) => {
     throw error
   }
 }
-
-const getBoardAnalytics = async (userId, boardId, query) => {
+const getPrivateBoards = async (userId, page, itemPerPage, queryFilters) => {
   try {
-    console.log(query)
-    // Lấy thông tin board và các dữ liệu liên quan
+    if (!page) page = DEFAULT_PAGE
+    if (!itemPerPage) itemPerPage = DEFAULT_ITEM_PER_PAGE
+    const results = await boardModel.getPrivateBoards(
+      userId,
+      parseInt(page, 10),
+      parseInt(itemPerPage, 10),
+      queryFilters
+    )
+    return results
+  } catch (error) {
+    throw error
+  }
+}
+
+const getArchivedBoards = async (userId, page, itemPerPage, queryFilters) => {
+  try {
+    if (!page) page = DEFAULT_PAGE
+    if (!itemPerPage) itemPerPage = DEFAULT_ITEM_PER_PAGE
+    const results = await boardModel.getArchivedBoards(
+      userId,
+      parseInt(page, 10),
+      parseInt(itemPerPage, 10),
+      queryFilters
+    )
+    return results
+  } catch (error) {
+    throw error
+  }
+}
+
+const getPublicBoards = async (page, itemPerPage, queryFilters) => {
+  try {
+    if (!page) page = DEFAULT_PAGE
+    if (!itemPerPage) itemPerPage = DEFAULT_ITEM_PER_PAGE
+    const results = await boardModel.getPublicBoards(parseInt(page, 10), parseInt(itemPerPage, 10), queryFilters)
+    return results
+  } catch (error) {
+    throw error
+  }
+}
+
+const getBoardAnalytics = async (userId, boardId) => {
+  try {
     const board = await boardModel.getDetailsBoardAnalytics(userId, boardId)
     const allMembers = board.members.concat(board.owners)
     let analytics = {}
 
     if (board) {
-      analytics = allMembers.map(member => {
-        // Lọc các card mà thành viên tham gia
+      // Tổng số card
+      const totalCards = board.cards?.length || 0
+      const totalCompletedCards = board.cards?.filter(card => card.isComplete === true).length || 0
+      const totalIncompleteCards = totalCards - totalCompletedCards
+
+      // Tổng số checklist items
+      const totalChecklistItems =
+        board.cards?.reduce((total, card) => {
+          return (
+            total +
+            (card.checklists?.reduce((checklistTotal, checklist) => {
+              return checklistTotal + (checklist.items?.length || 0)
+            }, 0) || 0)
+          )
+        }, 0) || 0
+
+      const totalCompletedChecklistItems =
+        board.cards?.reduce((total, card) => {
+          return (
+            total +
+            (card.checklists?.reduce((checklistTotal, checklist) => {
+              return checklistTotal + (checklist.items?.filter(item => item.isCompleted === true).length || 0)
+            }, 0) || 0)
+          )
+        }, 0) || 0
+
+      const totalIncompleteChecklistItems = totalChecklistItems - totalCompletedChecklistItems
+
+      // Thống kê số card theo từng cột
+      const cardsByColumn = board.columns?.map(column => ({
+        columnId: column._id,
+        columnTitle: column.title,
+        totalCards: board.cards?.filter(card => card.columnId.equals(column._id)).length || 0
+      }))
+
+      // Thống kê chi tiết theo từng thành viên
+      const memberAnalytics = allMembers.map(member => {
         const memberCards = board.cards?.filter(card => {
           const cardMemberIds = card?.memberIds?.map(id => id.toString())
           return cardMemberIds?.includes(member._id.toString())
         })
 
-        // Tính tổng số checklist items hoàn thành
-        const totalCompletedChecklists = memberCards?.reduce((total, card) => {
-          const completedItems = card.checklists?.reduce((checklistTotal, checklist) => {
-            return checklistTotal + checklist.items.filter(item => item.isCompleted === true).length
-          }, 0)
-          return total + completedItems
-        }, 0)
-
         return {
-          ...member,
-          totalCards: memberCards?.length || 0, // Tổng số card mà thành viên tham gia
-          totalCompletedCards: memberCards?.filter(card => card.isComplete === true).length || 0, // Tổng số card hoàn thành
-          totalIncompleteCards: memberCards?.filter(card => card.isComplete === false).length || 0, // Tổng số card chưa hoàn thành
-          totalCompletedChecklists: totalCompletedChecklists || 0 // Tổng số checklist items hoàn thành
+          displayName: member.displayName,
+          totalCards: memberCards?.length || 0,
+          totalCompletedCards: memberCards?.filter(card => card.isComplete === true).length || 0,
+          totalIncompleteCards: memberCards?.filter(card => card.isComplete === false).length || 0
         }
       })
+
+      // Tổng hợp tất cả thống kê
+      analytics = {
+        totalCards,
+        totalCompletedCards,
+        totalIncompleteCards,
+        totalChecklistItems,
+        totalCompletedChecklistItems,
+        totalIncompleteChecklistItems,
+        cardsByColumn,
+        memberAnalytics
+      }
     }
 
     return analytics
@@ -151,7 +231,6 @@ const getBoardAnalytics = async (userId, boardId, query) => {
     throw error
   }
 }
-
 const getRolePermissions = async (userId, boardId) => {
   try {
     const rolePermissions = await boardModel.getRolePermissions(userId, boardId)
@@ -195,6 +274,89 @@ const updateUserRole = async (userId, boardId, role) => {
   }
 }
 
+const updateAutomation = async (boardId, updateData) => {
+  try {
+    // Gọi tầng model để cập nhật automation
+    const updatedBoard = await boardModel.update(boardId, updateData)
+
+    if (!updatedBoard) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+    }
+
+    return updatedBoard
+  } catch (error) {
+    throw error
+  }
+}
+
+const joinPublicBoard = async (userId, boardId) => {
+  try {
+    const board = await boardModel.findOneById(boardId)
+    console.log(board)
+    if (!board) throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+    if (board.type === BOARD_TYPES.PRIVATE) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'You are not allowed to join this board!')
+    }
+    if (board.memberIds.includes(userId) || board.ownerIds.includes(userId)) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'You are already a member of this board!')
+    }
+    const joinBoard = await boardModel.pushMemberIds(boardId, userId)
+    return joinBoard
+  } catch (error) {
+    throw error
+  }
+}
+const unArchiveBoard = async (userId, boardId) => {
+  try {
+    const board = await boardModel.findOneById(boardId)
+    console.log(board)
+    if (!board) throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+    console.log(board.ownerIds.includes(userId))
+    if (board.ownerIds.includes(userId)) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'You can not unarchive this board!')
+    }
+    if (board._destroy === false) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'You can not unarchive this board!!')
+    }
+    const unArchiveBoard = await boardModel.unArchiveBoard(userId, boardId)
+    return unArchiveBoard
+  } catch (error) {
+    throw error
+  }
+}
+
+const archiveBoard = async (userId, boardId) => {
+  try {
+    const result = await boardModel.archiveBoard(userId, boardId)
+    return result
+  } catch (error) {
+    throw error
+  }
+}
+
+const leaveBoard = async (userId, boardId) => {
+  try {
+    // Xóa người dùng khỏi board
+    const board = await boardModel.leaveBoard(userId, boardId)
+    if (!board) {
+      throw new Error('Failed to leave the board or board not found.')
+    }
+
+    // Xóa người dùng khỏi tất cả các card trong board
+    await cardModel.updateMany({ boardId: new ObjectId(boardId) }, { $pull: { memberIds: new ObjectId(userId) } })
+
+    // Xóa người dùng khỏi tất cả các checklist trong board
+    await checklistModel.updateMany(
+      { boardId: new ObjectId(boardId) },
+      { $pull: { assignedUserIds: new ObjectId(userId) } }
+    )
+
+    return board
+  } catch (error) {
+    throw error
+  }
+}
+
 export const boardService = {
   getRolePermissions,
   updateUserRole,
@@ -203,5 +365,13 @@ export const boardService = {
   update,
   moveCardToDifferentColumn,
   getBoards,
-  getBoardAnalytics
+  getPrivateBoards,
+  getPublicBoards,
+  getBoardAnalytics,
+  updateAutomation,
+  joinPublicBoard,
+  archiveBoard,
+  getArchivedBoards,
+  unArchiveBoard,
+  leaveBoard
 }

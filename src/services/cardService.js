@@ -7,6 +7,7 @@ import ApiError from '~/utils/ApiError'
 import { attachmentService } from './attachmentService'
 import { ACTION_TYPES, CARD_MEMBER_ACTION, OWNER_ACTION_TARGET } from '~/utils/constants'
 import { actionModel } from '~/models/actionModel'
+import { getSocketInstance } from '~/sockets/socketInstance'
 
 const getDetails = async (userId, cardId) => {
   try {
@@ -72,7 +73,7 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
       updatedCard = await cardModel.updateMembers(cardId, incoming)
 
       if (updateData.incomingMemberInfo.action === CARD_MEMBER_ACTION.ADD) {
-        await actionModel.createNew({
+        const createdAction = await actionModel.createNew({
           assignerId: userInfo._id,
           assigneeId: incoming.userId,
           boardId: updatedCard.boardId.toString(),
@@ -84,6 +85,10 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
             dueDate: updatedCard.dueDate ? updatedCard.dueDate : null
           }
         })
+        const action = await actionModel.findOneById(createdAction.insertedId)
+        // Phát sự kiện socket sau khi cập nhật card
+        const io = getSocketInstance()
+        io.emit('BE_USER_RECEIVED_ACTION', action)
       }
     } else if (updateData.updateLabels) {
       updatedCard = await cardModel.updateLabels(cardId, updateData.updateLabels)

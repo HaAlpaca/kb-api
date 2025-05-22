@@ -12,6 +12,58 @@ const getBoards = async (req, res, next) => {
     next(error)
   }
 }
+const getPrivateBoards = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const { page, itemPerPage, q } = req.query
+    const queryFilters = q
+    const results = await boardService.getPrivateBoards(userId, page, itemPerPage, queryFilters)
+    res.status(StatusCodes.OK).json(results)
+  } catch (error) {
+    next(error)
+  }
+}
+const getArchivedBoards = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const { page, itemPerPage, q } = req.query
+    const queryFilters = q
+    const results = await boardService.getArchivedBoards(userId, page, itemPerPage, queryFilters)
+    res.status(StatusCodes.OK).json(results)
+  } catch (error) {
+    next(error)
+  }
+}
+const getPublicBoards = async (req, res, next) => {
+  try {
+    const { page, itemPerPage, q } = req.query
+    const queryFilters = q
+    const results = await boardService.getPublicBoards(page, itemPerPage, queryFilters)
+    res.status(StatusCodes.OK).json(results)
+  } catch (error) {
+    next(error)
+  }
+}
+const joinPublicBoard = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const boardId = req.params.id
+    const board = await boardService.joinPublicBoard(userId, boardId)
+    res.status(StatusCodes.OK).json(board)
+  } catch (error) {
+    next(error)
+  }
+}
+const unArchiveBoard = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const boardId = req.params.id
+    const board = await boardService.unArchiveBoard(userId, boardId)
+    res.status(StatusCodes.OK).json(board)
+  } catch (error) {
+    next(error)
+  }
+}
 const getBoardAnalytics = async (req, res, next) => {
   try {
     const userId = req.jwtDecoded._id
@@ -96,6 +148,49 @@ const updateUserRole = async (req, res, next) => {
     next(error)
   }
 }
+const updateBoardAutomation = async (req, res, next) => {
+  try {
+    const boardId = req.params.id // Lấy boardId từ URL params
+    const { isCompleteCardTrigger, completeCardTriggerColumnId, isOverdueCardTrigger, overdueCardColumnId } = req.body
+
+    // Chuẩn bị dữ liệu để cập nhật
+    const updateData = {
+      ...(isCompleteCardTrigger !== undefined && { isCompleteCardTrigger }),
+      ...(completeCardTriggerColumnId && { completeCardTriggerColumnId }),
+      ...(isOverdueCardTrigger !== undefined && { isOverdueCardTrigger }),
+      ...(overdueCardColumnId && { overdueCardColumnId })
+    }
+
+    // Gọi tầng service để cập nhật automation
+    const updatedBoard = await boardService.updateAutomation(boardId, updateData)
+
+    // Trả về kết quả
+    res.status(StatusCodes.OK).json(updatedBoard)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const archiveBoard = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const boardId = req.params.id
+    const result = await boardService.archiveBoard(userId, boardId)
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+const leaveBoard = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const boardId = req.params.id
+    const result = await boardService.leaveBoard(userId, boardId)
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
 
 export const boardController = {
   updateUserRole,
@@ -105,5 +200,13 @@ export const boardController = {
   getDetails,
   moveCardToDifferentColumn,
   update,
-  getBoardAnalytics
+  getBoardAnalytics,
+  updateBoardAutomation,
+  getPublicBoards,
+  getPrivateBoards,
+  joinPublicBoard,
+  archiveBoard,
+  getArchivedBoards,
+  unArchiveBoard,
+  leaveBoard
 }

@@ -43,16 +43,16 @@ const BOARD_COLLECTION_SCHEMA = Joi.object({
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
-  _destroy: Joi.boolean().default(false)
+  _destroy: Joi.boolean().default(false),
 
   // // automation trigger
 
   // // khi card hoàn thành thì chuyển sang cột cụ thể
-  // isCompleteCardTrigger: Joi.boolean().default(false),
-  // completeCardTriggerColumnId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE).default(null),
-  // // khi card hết hạn thì chuyển sang cột cụ thể
-  // isOverdueCardTrigger: Joi.boolean().default(false),
-  // overdueCardColumnId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE).default(null)
+  isCompleteCardTrigger: Joi.boolean().default(false),
+  completeCardTriggerColumnId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE).default(null),
+  // khi card hết hạn thì chuyển sang cột cụ thể
+  isOverdueCardTrigger: Joi.boolean().default(false),
+  overdueCardColumnId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE).default(null)
 })
 // chi dinh nhung field khong dc cap nhat
 const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
@@ -284,14 +284,24 @@ const pushMemberIds = async (boardId, userId) => {
 
 const update = async (boardId, updateData) => {
   try {
-    // loc field khong cho phep update
+    // Loại bỏ các trường không được phép cập nhật
     Object.keys(updateData).forEach(fieldName => {
       if (INVALID_UPDATE_FIELDS.includes(fieldName)) delete updateData[fieldName]
     })
-    if (updateData.columnOrderIds) updateData.columnOrderIds = updateData.columnOrderIds.map(_id => new ObjectId(_id))
+
+    // update automation
+    if (updateData.completeCardTriggerColumnId) {
+      updateData.completeCardTriggerColumnId = new ObjectId(updateData.completeCardTriggerColumnId)
+    }
+    if (updateData.overdueCardColumnId) {
+      updateData.overdueCardColumnId = new ObjectId(updateData.overdueCardColumnId)
+    }
+
+    // Cập nhật board trong cơ sở dữ liệu
     const result = await GET_DB()
       .collection(BOARD_COLLECTION_NAME)
       .findOneAndUpdate({ _id: new ObjectId(boardId) }, { $set: updateData }, { returnDocument: 'after' })
+
     return result
   } catch (error) {
     throw new Error(error)
@@ -374,6 +384,189 @@ const getBoards = async (userId, page, itemPerPage, queryFilters) => {
     return {
       boards: res.queryBoards || [],
       totalBoard: res.querryTotalBoards[0]?.countedAllBoards || 0
+    }
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const getPrivateBoards = async (userId, page, itemPerPage, queryFilters) => {
+  try {
+    //
+    const queryCondition = [
+      // dieu kien 1 => board chua bi xoa
+      { _destroy: false },
+      // dieu kien 2 => board co type la private
+      { type: 'private' },
+      // userId phai la owner id va user id
+      {
+        $or: [{ ownerIds: { $all: [new ObjectId(userId)] } }, { memberIds: { $all: [new ObjectId(userId)] } }]
+      }
+    ]
+    // queryFilters for search boards title
+    if (queryFilters) {
+      // console.log(queryFilters)
+      // console.log('queryFilters: ', Object.keys(queryFilters))
+      Object.keys(queryFilters).forEach(key => {
+        // phan biet chu hoa chu thg
+        // queryCondition.push({
+        //   [key]: {
+        //     $regex: queryFilters[key]
+        //   }
+        // })
+        // khong phan biet chu hoa chu thg
+        queryCondition.push({
+          [key]: {
+            $regex: new RegExp(queryFilters[key], 'i')
+          }
+        })
+      })
+    }
+
+    const query = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .aggregate(
+        [
+          { $match: { $and: queryCondition } },
+          // sort : sap xep theo ten a-z (theo chuan ASCII nen B se dung truoc a)
+          { $sort: { title: 1 } },
+          {
+            $facet: {
+              // luồng thu nhat: query board
+              queryBoards: [
+                { $skip: pageSkipValue(page, itemPerPage) }, // bo qua so luồng bang ghi page trc do},
+                { $limit: itemPerPage } // gioi han toi da du lieu tra ve
+              ],
+              // query dem tong so luong bang ghi board
+              querryTotalBoards: [{ $count: 'countedAllBoards' }]
+            }
+          }
+        ],
+        {
+          collation: { locale: 'en' }
+          // https://www.mongodb.com/docs/v6.0/reference/collation/#std-label-collation-document-fields
+        }
+      )
+      .toArray()
+    // console.log('query: ', query)
+    const res = query[0]
+    return {
+      boards: res.queryBoards || [],
+      totalBoard: res.querryTotalBoards[0]?.countedAllBoards || 0
+    }
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+const getArchivedBoards = async (userId, page, itemPerPage, queryFilters) => {
+  try {
+    //
+    const queryCondition = [
+      // Điều kiện 1: Board đã bị xóa
+      { _destroy: true },
+      // Điều kiện 2: Người dùng phải là owner của board
+      { ownerIds: { $all: [new ObjectId(userId)] } }
+    ]
+    // queryFilters for search boards title
+    if (queryFilters) {
+      // console.log(queryFilters)
+      // console.log('queryFilters: ', Object.keys(queryFilters))
+      Object.keys(queryFilters).forEach(key => {
+        // phan biet chu hoa chu thg
+        // queryCondition.push({
+        //   [key]: {
+        //     $regex: queryFilters[key]
+        //   }
+        // })
+        // khong phan biet chu hoa chu thg
+        queryCondition.push({
+          [key]: {
+            $regex: new RegExp(queryFilters[key], 'i')
+          }
+        })
+      })
+    }
+
+    const query = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .aggregate(
+        [
+          { $match: { $and: queryCondition } },
+          // sort : sap xep theo ten a-z (theo chuan ASCII nen B se dung truoc a)
+          { $sort: { title: 1 } },
+          {
+            $facet: {
+              // luồng thu nhat: query board
+              queryBoards: [
+                { $skip: pageSkipValue(page, itemPerPage) }, // bo qua so luồng bang ghi page trc do},
+                { $limit: itemPerPage } // gioi han toi da du lieu tra ve
+              ],
+              // query dem tong so luong bang ghi board
+              querryTotalBoards: [{ $count: 'countedAllBoards' }]
+            }
+          }
+        ],
+        {
+          collation: { locale: 'en' }
+          // https://www.mongodb.com/docs/v6.0/reference/collation/#std-label-collation-document-fields
+        }
+      )
+      .toArray()
+    // console.log('query: ', query)
+    const res = query[0]
+    return {
+      boards: res.queryBoards || [],
+      totalBoard: res.querryTotalBoards[0]?.countedAllBoards || 0
+    }
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const getPublicBoards = async (page, itemPerPage, queryFilters) => {
+  try {
+    const queryCondition = [
+      // Điều kiện 1: Board chưa bị xóa
+      { _destroy: false },
+      // Điều kiện 2: Board có type là public
+      { type: 'public' }
+    ]
+
+    // Thêm bộ lọc tìm kiếm nếu có
+    if (queryFilters) {
+      Object.keys(queryFilters).forEach(key => {
+        queryCondition.push({
+          [key]: {
+            $regex: new RegExp(queryFilters[key], 'i') // Không phân biệt chữ hoa chữ thường
+          }
+        })
+      })
+    }
+
+    const query = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .aggregate([
+        { $match: { $and: queryCondition } },
+        // Sắp xếp theo tên (A-Z)
+        { $sort: { title: 1 } },
+        {
+          $facet: {
+            // Lấy danh sách board
+            queryBoards: [
+              { $skip: pageSkipValue(page, itemPerPage) }, // Bỏ qua số lượng bản ghi của các trang trước
+              { $limit: itemPerPage } // Giới hạn số lượng bản ghi trả về
+            ],
+            // Đếm tổng số lượng board
+            queryTotalBoards: [{ $count: 'countedAllBoards' }]
+          }
+        }
+      ])
+      .toArray()
+
+    const res = query[0]
+    return {
+      boards: res.queryBoards || [],
+      totalBoard: res.queryTotalBoards[0]?.countedAllBoards || 0
     }
   } catch (error) {
     throw new Error(error)
@@ -480,14 +673,68 @@ const getDetailsBoardAnalytics = async (userId, boardId) => {
   }
 }
 
-// const getAnalytics = async (boardId, memberIds, queryFilters) => {
-//   try {
-//     const result = []
-//     return result
-//   } catch (error) {
-//     throw new Error(error)
-//   }
-// }
+const archiveBoard = async (userId, boardId) => {
+  try {
+    const result = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(boardId), _destroy: false, ownerIds: { $in: [new ObjectId(userId)] } },
+        { $set: { _destroy: true, updatedAt: Date.now() } }, // Đánh dấu board là đã bị xóa
+        { returnDocument: 'after' }
+      )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const unArchiveBoard = async (userId, boardId) => {
+  try {
+    const result = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(boardId), _destroy: true, ownerIds: { $in: [new ObjectId(userId)] } },
+        { $set: { _destroy: false, updatedAt: Date.now() } }, // Đánh dấu board là đã bị xóa
+        { returnDocument: 'after' }
+      )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+const leaveBoard = async (userId, boardId) => {
+  try {
+    const board = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .findOne({ _id: new ObjectId(boardId), _destroy: false })
+
+    if (!board) {
+      throw new Error('Board not found or has been deleted.')
+    }
+
+    const result = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        {
+          _id: new ObjectId(boardId),
+          _destroy: false,
+          $or: [{ ownerIds: { $all: [new ObjectId(userId)] } }, { memberIds: { $all: [new ObjectId(userId)] } }]
+        },
+        {
+          $pull: {
+            memberIds: new ObjectId(userId),
+            ownerIds: new ObjectId(userId),
+            usersRole: { userId: new ObjectId(userId) }
+          }
+        },
+        { returnDocument: 'after' }
+      )
+
+    return result.value
+  } catch (error) {
+    throw new Error(error.message || 'An error occurred while leaving the board.')
+  }
+}
 
 export const boardModel = {
   BOARD_COLLECTION_NAME,
@@ -503,7 +750,13 @@ export const boardModel = {
   pushMemberIds,
   getDetailsBoardAnalytics,
   getRolePermissions,
-  updateUserRole
+  updateUserRole,
+  getPublicBoards,
+  getPrivateBoards,
+  archiveBoard,
+  getArchivedBoards,
+  unArchiveBoard,
+  leaveBoard
 }
 
 //board 6710c1dea34456a8d94373bc

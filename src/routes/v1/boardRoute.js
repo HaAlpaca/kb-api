@@ -8,6 +8,9 @@ import { PERMISSION_NAME } from '~/utils/constants'
 Router.route('/')
   .get(authMiddleware.isAuthorize, boardController.getBoards)
   .post(authMiddleware.isAuthorize, boardValidation.createNew, boardController.createNew)
+Router.route('/public').get(authMiddleware.isAuthorize, boardController.getPublicBoards)
+Router.route('/private').get(authMiddleware.isAuthorize, boardController.getPrivateBoards)
+Router.route('/archived').get(authMiddleware.isAuthorize, boardController.getArchivedBoards)
 Router.route('/:id')
   .get(
     authMiddleware.isAuthorize,
@@ -20,6 +23,11 @@ Router.route('/:id')
     boardValidation.update,
     boardController.update
   ) // update
+  .delete(
+    authMiddleware.isAuthorize,
+    rbacMiddleware.isValidPermission([PERMISSION_NAME.UPDATE_BOARD]),
+    boardController.archiveBoard
+  )
 
 // ho tro di chuyen card giua cac column
 Router.route('/supports/moving_card').put(
@@ -40,5 +48,13 @@ Router.route('/roles/:id').put(
   rbacMiddleware.isValidPermission([PERMISSION_NAME.UPDATE_MEMBER_ROLE]),
   boardController.updateUserRole
 )
+Router.route('/automations/:id').put(
+  authMiddleware.isAuthorize,
+  rbacMiddleware.isValidPermission([PERMISSION_NAME.UPDATE_BOARD]),
+  boardController.updateBoardAutomation
+)
+Router.route('/join_public_board/:id').put(authMiddleware.isAuthorize, boardController.joinPublicBoard)
+Router.route('/unarchive/:id').put(authMiddleware.isAuthorize, boardController.unArchiveBoard)
+Router.route('/leave_board/:id').put(authMiddleware.isAuthorize, boardController.leaveBoard)
 
 export const boardRoute = Router

@@ -9,18 +9,9 @@ import { ACTION_TYPES } from '~/utils/constants'
 const ACTION_COLLECTION_NAME = 'actions'
 
 const ACTION_COLLECTION_SCHEMA = Joi.object({
-  assignerId: Joi.string()
-    .required()
-    .pattern(OBJECT_ID_RULE)
-    .message(OBJECT_ID_RULE_MESSAGE),
-  assigneeId: Joi.string()
-    .required()
-    .pattern(OBJECT_ID_RULE)
-    .message(OBJECT_ID_RULE_MESSAGE),
-  boardId: Joi.string()
-    .required()
-    .pattern(OBJECT_ID_RULE)
-    .message(OBJECT_ID_RULE_MESSAGE),
+  assignerId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+  assigneeId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+  boardId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
   type: Joi.string()
     .required()
     .valid(...Object.values(ACTION_TYPES)),
@@ -51,9 +42,7 @@ const createNew = async data => {
       _destroy: false
     }
 
-    const createdAction = await GET_DB()
-      .collection(ACTION_COLLECTION_NAME)
-      .insertOne(newAction)
+    const createdAction = await GET_DB().collection(ACTION_COLLECTION_NAME).insertOne(newAction)
 
     return createdAction
   } catch (error) {
@@ -94,11 +83,7 @@ const update = async (actionId, updateData) => {
 
     const result = await GET_DB()
       .collection(ACTION_COLLECTION_NAME)
-      .findOneAndUpdate(
-        { _id: new ObjectId(actionId) },
-        { $set: updateData },
-        { returnDocument: 'after' }
-      )
+      .findOneAndUpdate({ _id: new ObjectId(actionId) }, { $set: updateData }, { returnDocument: 'after' })
 
     return result
   } catch (error) {
@@ -119,9 +104,7 @@ const findAndUpdateMany = async (queryConditions, updateData) => {
     await collection.updateMany({ $and: queryConditions }, { $set: updateData })
 
     // Sau khi cập nhật, lấy lại toàn bộ documents đã được cập nhật
-    const updatedDocs = await collection
-      .find({ $and: queryConditions })
-      .toArray()
+    const updatedDocs = await collection.find({ $and: queryConditions }).toArray()
 
     return updatedDocs
   } catch (error) {
