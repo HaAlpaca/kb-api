@@ -2,7 +2,6 @@
 import { GET_DB } from '~/config/mongodb'
 import { ObjectId } from 'mongodb'
 import { getSocketInstance } from '~/sockets/socketInstance'
-const io = getSocketInstance()
 
 export const WATCH_AUTOMATION = async () => {
   try {
@@ -65,6 +64,8 @@ async function getBoardById(boardsCollection, boardId) {
 
 // Xử lý trigger khi card hoàn thành
 async function handleCompleteTrigger(cardsCollection, board, card, updatedFields) {
+  const io = getSocketInstance()
+
   if (updatedFields.isComplete === true && board.isCompleteCardTrigger) {
     const completeColumnId = board.completeCardTriggerColumnId
     if (completeColumnId) {
@@ -85,6 +86,8 @@ async function handleCompleteTrigger(cardsCollection, board, card, updatedFields
 
 // Xử lý trigger khi card hết hạn
 async function handleOverdueTrigger(cardsCollection, board, card) {
+  const io = getSocketInstance()
+
   const now = new Date()
   if (card.dueDate && new Date(card.dueDate) < now && board.isOverdueCardTrigger) {
     const overdueColumnId = board.overdueCardColumnId
