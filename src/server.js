@@ -49,6 +49,18 @@ const START_SERVER = () => {
   io.on('connection', socket => {
     // console.log('A client connected:', socket.id)
     inviteUserToBoardSocket(socket)
+
+    // socket join room
+    socket.on('JOIN_BOARD', boardId => {
+      socket.join(boardId)
+      console.log(`User ${socket.id} joined board room: ${boardId}`)
+    })
+
+    socket.on('LEAVE_BOARD', boardId => {
+      socket.leave(boardId)
+      console.log(`User ${socket.id} left board room: ${boardId}`)
+    })
+
     // label socket
     labelSocket.Delete(socket)
     labelSocket.Create(socket)
@@ -81,9 +93,7 @@ const START_SERVER = () => {
     // dùng server.listen vì server bọc app rồi
     server.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
       // eslint-disable-next-line no-console
-      console.log(
-        `DEV: Server is running at http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}/`
-      )
+      console.log(`DEV: Server is running at http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}/`)
     })
   }
 

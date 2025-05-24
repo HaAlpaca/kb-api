@@ -1,6 +1,8 @@
 /* eslint-disable no-console */
 import { GET_DB } from '~/config/mongodb'
 import { ObjectId } from 'mongodb'
+import { getSocketInstance } from '~/sockets/socketInstance'
+const io = getSocketInstance()
 
 export const WATCH_AUTOMATION = async () => {
   try {
@@ -71,6 +73,10 @@ async function handleCompleteTrigger(cardsCollection, board, card, updatedFields
         { $set: { columnId: new ObjectId(completeColumnId) } }
       )
       console.log(`Card ${card._id} moved to column ${completeColumnId} (Complete Trigger)`)
+
+      io.to(card.boardId.toString()).emit('BE_UPDATE_CARD', {
+        card
+      })
     } else {
       console.warn(`Complete trigger is enabled, but no column ID is set for board ${board._id}.`)
     }
@@ -88,6 +94,9 @@ async function handleOverdueTrigger(cardsCollection, board, card) {
         { $set: { columnId: new ObjectId(overdueColumnId) } }
       )
       console.log(`Card ${card._id} moved to column ${overdueColumnId} (Overdue Trigger)`)
+      io.to(card.boardId.toString()).emit('BE_UPDATE_CARD', {
+        card
+      })
     } else {
       console.warn(`Overdue trigger is enabled, but no column ID is set for board ${board._id}.`)
     }
