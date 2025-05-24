@@ -15,8 +15,10 @@ const createNew = async (req, res, next) => {
 // Cập nhật checklist
 const update = async (req, res, next) => {
   try {
+    const userInfo = req.jwtDecoded
     const checklistId = req.params.id
     const updatedChecklist = await checklistService.update(
+      userInfo,
       checklistId,
       req.body
     )

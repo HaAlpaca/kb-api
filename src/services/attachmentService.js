@@ -7,7 +7,7 @@ import { AttachmentModel } from '~/models/attachmentModel'
 import { cardModel } from '~/models/cardModel'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
 import ApiError from '~/utils/ApiError'
-import { formatMimeType } from '~/utils/formatters'
+import { formatMimeType, formatMimeTypeShort } from '~/utils/formatters'
 
 const createNew = async (userId, reqBody, attachmentFile) => {
   try {
@@ -26,32 +26,36 @@ const createNew = async (userId, reqBody, attachmentFile) => {
     }
 
     if (attachmentFile) {
-      // lấy file name
+      // Lấy file name
       const fileName = attachmentFile.originalname
         .replace(/\.[^/.]+$/, '') // Xóa phần mở rộng của file
         .replace(/[^a-zA-Z0-9\s]/g, '') // Xóa các ký tự đặc biệt trừ chữ, số và khoảng trắng
         .trim() // Loại bỏ khoảng trắng dư thừa ở đầu/cuối chuỗi
-      const mineType = formatMimeType(attachmentFile) // get pdf, docx
-      const uploadResult = await CloudinaryProvider.streamUploadAttachment(
-        attachmentFile.buffer,
-        'KanbanBoard/attachments',
-        fileName,
-        mineType
-      )
+
+      const mineType = formatMimeType(attachmentFile) // Lấy MIME type (ví dụ: image/jpeg, application/pdf)
+      let uploadResult
+      if (mineType.startsWith('image/')) {
+        // Nếu là ảnh, sử dụng streamUpload
+        uploadResult = await CloudinaryProvider.streamUpload(attachmentFile.buffer, 'KanbanBoard/attachments')
+      } else {
+        // Nếu không phải ảnh, sử dụng streamUploadAttachment
+        uploadResult = await CloudinaryProvider.streamUploadAttachment(
+          attachmentFile.buffer,
+          'KanbanBoard/attachments',
+          fileName,
+          mineType
+        )
+      }
+
       newAttachment.name = fileName
       newAttachment.link = `${uploadResult.secure_url}`
-      newAttachment.type = mineType
+      newAttachment.type = formatMimeTypeShort(attachmentFile)
       newAttachment.size = parseInt(attachmentFile.size)
     }
 
-    // goi tang model xu li ban ghi vao db
-    const createdAttachment = await AttachmentModel.createNew(
-      userId,
-      newAttachment
-    )
-    const getNewAttachment = await AttachmentModel.findOneById(
-      createdAttachment.insertedId
-    )
+    // Gọi tầng model xử lý bản ghi vào DB
+    const createdAttachment = await AttachmentModel.createNew(userId, newAttachment)
+    const getNewAttachment = await AttachmentModel.findOneById(createdAttachment.insertedId)
     const attachmentId = getNewAttachment._id.toString()
     if (reqBody.cardId) {
       await AttachmentModel.pushCardAttachmentIds(reqBody.cardId, attachmentId)
@@ -79,8 +83,7 @@ const update = async (attachmentId, reqBody) => {
       updatedAt: Date.now()
     }
     const attachment = await AttachmentModel.findOneById(attachmentId)
-    if (!attachment)
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Attachment not found!')
+    if (!attachment) throw new ApiError(StatusCodes.NOT_FOUND, 'Attachment not found!')
 
     if (attachment.link !== 'link') {
       updateData.name = reqBody.name ? reqBody.name : attachment.name
@@ -91,10 +94,7 @@ const update = async (attachmentId, reqBody) => {
     }
 
     // console.log(updateData)
-    const updateAttachment = await AttachmentModel.update(
-      attachmentId,
-      updateData
-    )
+    const updateAttachment = await AttachmentModel.update(attachmentId, updateData)
     return updateAttachment
   } catch (error) {
     throw error
@@ -104,8 +104,7 @@ const deleteAttachment = async attachmentId => {
   try {
     const targetAttachment = await AttachmentModel.findOneById(attachmentId)
     // console.log('🚀 ~ deleteItem ~ targetColumn:', targetColumn)
-    if (!targetAttachment)
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Attachment not found!')
+    if (!targetAttachment) throw new ApiError(StatusCodes.NOT_FOUND, 'Attachment not found!')
     // xoa attachment
     await AttachmentModel.deleteOneById(attachmentId)
     // xoa attachment thuoc card

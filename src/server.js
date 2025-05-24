@@ -11,15 +11,14 @@ import cookieParser from 'cookie-parser'
 import http from 'http'
 import socketIo from 'socket.io'
 import { inviteUserToBoardSocket } from './sockets/inviteUserToBoardSocket'
-import {
-  cardSocket,
-  MoveCardToDifferentColumnSocket
-} from './sockets/cardSocket'
+import { cardSocket } from './sockets/cardSocket'
 import { columnSocket } from './sockets/columnSocket'
 import { START_CRON_JOB } from './config/cron'
 import { boardSocket } from './sockets/boardSocket'
 import { labelSocket } from './sockets/labelSocket'
 import { attachmentSocket } from './sockets/attachmentSocket'
+import { WATCH_AUTOMATION } from './watchers/watchCards'
+import { setSocketInstance } from './sockets/socketInstance'
 
 const START_SERVER = () => {
   const app = express()
@@ -43,7 +42,12 @@ const START_SERVER = () => {
   const server = http.createServer(app)
   // khởi tạo socket io với server và cors
   const io = socketIo(server, { cors: corsOptions })
+
+  // Lưu trữ instance của io
+  setSocketInstance(io)
+
   io.on('connection', socket => {
+    // console.log('A client connected:', socket.id)
     inviteUserToBoardSocket(socket)
     // label socket
     labelSocket.Delete(socket)
@@ -61,6 +65,7 @@ const START_SERVER = () => {
     cardSocket.Create(socket)
     cardSocket.Delete(socket)
     cardSocket.Move(socket)
+    cardSocket.Update(socket)
     // column socket
     columnSocket.Create(socket)
     columnSocket.Delete(socket)
@@ -70,16 +75,14 @@ const START_SERVER = () => {
     // dùng server.listen vì server bọc app rồi
     server.listen(process.env.PORT, () => {
       // eslint-disable-next-line no-console
-      console.log(
-        `PRODUCTION: Hi ${env.AUTHOR}, server is running successfully at PORT: ${process.env.PORT}`
-      )
+      console.log(`PRODUCTION: Hi ${env.AUTHOR}, server is running successfully at PORT: ${process.env.PORT}`)
     })
   } else {
     // dùng server.listen vì server bọc app rồi
     server.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
       // eslint-disable-next-line no-console
       console.log(
-        `DEV: Hi ${env.AUTHOR}, server is running successfully at Host: http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}/`
+        `DEV: Server is running at http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}/`
       )
     })
   }
@@ -96,6 +99,7 @@ const START_SERVER = () => {
     console.log('Connecting to MongoDB Cloud Atlas...')
     await CONNECT_DB()
     console.log('Connect to MongoDB Cloud Atlas!')
+    WATCH_AUTOMATION()
     START_SERVER()
     START_CRON_JOB()
   } catch (error) {

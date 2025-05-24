@@ -32,19 +32,13 @@ export const slugify = val => {
  */
 export const pickUser = user => {
   if (!user) return {}
-  return pick(user, [
-    '_id',
-    'email',
-    'username',
-    'displayName',
-    'avatar',
-    'role',
-    'isActive',
-    'createAt',
-    'updateAt'
-  ])
+  return pick(user, ['_id', 'email', 'username', 'displayName', 'avatar', 'role', 'isActive', 'createAt', 'updateAt'])
 }
 
 export const formatMimeType = attachmentFile => {
+  return mime.lookup(attachmentFile.originalname)
+}
+
+export const formatMimeTypeShort = attachmentFile => {
   return mime.extension(mime.lookup(attachmentFile.originalname))
 }

@@ -10,17 +10,16 @@ const createNew = async (req, res, next) => {
     cardId: Joi.string()
       .pattern(OBJECT_ID_RULE)
       .message(OBJECT_ID_RULE_MESSAGE),
+    assignedUserIds: Joi.array()
+      .items(
+        Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+      )
+      .default([]),
+    dueDate: Joi.date().timestamp('javascript').optional(),
     items: Joi.array()
       .items(
         Joi.object({
           content: Joi.string().required().trim(),
-          assignedUserIds: Joi.array()
-            .items(
-              Joi.string()
-                .pattern(OBJECT_ID_RULE)
-                .message(OBJECT_ID_RULE_MESSAGE)
-            )
-            .default([]),
           isCompleted: Joi.boolean().default(false)
         })
       )

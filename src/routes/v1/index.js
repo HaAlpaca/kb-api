@@ -8,6 +8,7 @@ import { invitationRoute } from './invitationRoute'
 import { labelRoute } from './labelRoute'
 import { attachmentRoute } from './attachmentRoute'
 import { checklistRoute } from './checklistRoute'
+import { actionRoute } from './actionRoute'
 const Router = express.Router()
 // check api v1
 Router.get('/status', (req, res) => {
@@ -31,5 +32,7 @@ Router.use('/invitations', invitationRoute)
 Router.use('/attachments', attachmentRoute)
 // checkbox
 Router.use('/checklists', checklistRoute)
+// action
+Router.use('/actions', actionRoute)
 
 export const APIs_v1 = Router
