@@ -91,7 +91,7 @@ const getDetails = async (req, res, next) => {
     const boardId = req.params.id
 
     // Lấy các tham số lọc từ query string
-    const { members, startDate, endDate, isComplete } = req.query
+    const { members, startDate, endDate, isComplete, title, label } = req.query
 
     // Tạo object chứa các filters
     const queryFilters = {
@@ -99,7 +99,9 @@ const getDetails = async (req, res, next) => {
       ...(startDate && { startDate: parseInt(startDate, 10) }), // Lọc theo ngày bắt đầu
       ...(endDate && { endDate: parseInt(endDate, 10) }), // Lọc theo ngày kết thúc
       ...(isComplete === 'true' && { isComplete: true }), // Lọc card hoàn thành
-      ...(isComplete === 'false' && { isComplete: false }) // Lọc card chưa hoàn thành
+      ...(isComplete === 'false' && { isComplete: false }), // Lọc card chưa hoàn thành
+      ...(title && { title: { $regex: title, $options: 'i' } }), // Lọc theo tiêu đề (không phân biệt hoa thường)
+      ...(label && { labels: label.split(',') }) // Lọc theo nhãn (label)
     }
 
     // Gọi tầng service để lấy dữ liệu

@@ -150,6 +150,7 @@ const findByUser = async userId => {
         { $sort: { updatedAt: 1, createdAt: 1 } }
       ])
       .toArray()
+    // console.log('findByUser results: ', results)
     return results
   } catch (error) {
     throw new Error(error)

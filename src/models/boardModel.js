@@ -174,6 +174,18 @@ const getDetails = async (userId, boardId, queryFilters) => {
           isComplete: queryFilters.isComplete // Lọc theo trạng thái hoàn thành
         })
       }
+
+      if (queryFilters.title) {
+        cardFilters.push({
+          title: queryFilters.title // Lọc theo tiêu đề
+        })
+      }
+
+      if (queryFilters.labels) {
+        cardFilters.push({
+          cardLabelIds: { $in: queryFilters.labels.map(id => new ObjectId(id)) } // Lọc theo nhãn
+        })
+      }
     }
 
     const result = await GET_DB()

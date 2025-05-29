@@ -19,6 +19,7 @@ import { labelSocket } from './sockets/labelSocket'
 import { attachmentSocket } from './sockets/attachmentSocket'
 import { WATCH_AUTOMATION } from './watchers/watchCards'
 import { setSocketInstance } from './sockets/socketInstance'
+import { START_OVERDUE_WATCHER } from './watchers/overdueWatcher'
 
 const START_SERVER = () => {
   const app = express()
@@ -110,7 +111,9 @@ const START_SERVER = () => {
     await CONNECT_DB()
     console.log('Connect to MongoDB Cloud Atlas!')
     WATCH_AUTOMATION()
+    START_OVERDUE_WATCHER()
     START_SERVER()
+
     START_CRON_JOB()
   } catch (error) {
     console.error(error)

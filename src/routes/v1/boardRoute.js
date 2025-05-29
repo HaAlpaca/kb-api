@@ -19,7 +19,7 @@ Router.route('/:id')
   )
   .put(
     authMiddleware.isAuthorize,
-    rbacMiddleware.isValidPermission([PERMISSION_NAME.UPDATE_BOARD]),
+    rbacMiddleware.isValidPermission([PERMISSION_NAME.EDIT_COLUMN]),
     boardValidation.update,
     boardController.update
   ) // update

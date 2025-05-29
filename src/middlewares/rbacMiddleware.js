@@ -8,8 +8,8 @@ const isValidPermission = (requiredPermission = []) =>
   async (req, res, next) => {
     const userId = req.jwtDecoded._id
     const boardId = req.header('x-board-id')
-    console.log('userId: ', userId)
-    console.log('boardId: ', boardId)
+    // console.log('userId: ', userId)
+    // console.log('boardId: ', boardId)
     try {
       const userRole = await boardController.getRolePermissions(userId, boardId)
       // kiem tra ton tai role
