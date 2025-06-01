@@ -5,7 +5,7 @@ import { env } from '~/config/environment'
 export const WHITELIST_DOMAINS = [
   // 'http://localhost:5173'
   'https://trello-web-dun.vercel.app',
-  'https://kb-web-yrx5.vercel.app/',
+  'https://kb-web-yrx5.vercel.app',
   'http://localhost:4173'
   // da luon luon cho phep
   //more
