@@ -187,7 +187,8 @@ const leaveBoard = async (req, res, next) => {
   try {
     const userId = req.jwtDecoded._id
     const boardId = req.params.id
-    const result = await boardService.leaveBoard(userId, boardId)
+    const newAdminId = req.body.newAdminId
+    const result = await boardService.leaveBoard(userId, boardId, newAdminId)
     res.status(StatusCodes.OK).json(result)
   } catch (error) {
     next(error)

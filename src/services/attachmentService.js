@@ -77,22 +77,8 @@ const getCardAttachments = async cardId => {
   }
 }
 
-const update = async (attachmentId, reqBody) => {
+const update = async (attachmentId, updateData) => {
   try {
-    const updateData = {
-      updatedAt: Date.now()
-    }
-    const attachment = await AttachmentModel.findOneById(attachmentId)
-    if (!attachment) throw new ApiError(StatusCodes.NOT_FOUND, 'Attachment not found!')
-
-    if (attachment.link !== 'link') {
-      updateData.name = reqBody.name ? reqBody.name : attachment.name
-    }
-    if (attachment.type === 'link') {
-      updateData.name = reqBody.name ? reqBody.name : attachment.name
-      updateData.link = reqBody.link ? reqBody.link : attachment.name
-    }
-
     // console.log(updateData)
     const updateAttachment = await AttachmentModel.update(attachmentId, updateData)
     return updateAttachment

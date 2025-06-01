@@ -288,6 +288,22 @@ const pushMemberIds = async (boardId, userId) => {
         },
         { returnDocument: 'after' }
       )
+
+    // Tạo vai trò mới cho userId
+    const newRoleData = generateRole(userId, ROLE_NAME.USER)
+
+    // Cập nhật vai trò và quyền của userId trong usersRole
+    await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .updateOne(
+        {
+          _id: new ObjectId(boardId),
+          'usersRole.userId': new ObjectId(userId) // Tìm userId trong mảng usersRole
+        },
+        {
+          $set: { 'usersRole.$': newRoleData } // Cập nhật vai trò và quyền mới
+        }
+      )
     return result
   } catch (error) {
     throw new Error(error)
@@ -748,6 +764,41 @@ const leaveBoard = async (userId, boardId) => {
   }
 }
 
+const unshiftOwnerIds = async (boardId, userId) => {
+  try {
+    const db = GET_DB().collection(BOARD_COLLECTION_NAME)
+
+    // Đảm bảo không thêm trùng lặp bằng $addToSet
+    await db.updateOne({ _id: new ObjectId(boardId) }, { $addToSet: { ownerIds: new ObjectId(userId) } })
+
+    // Đưa userId lên đầu danh sách bằng $push với $position
+    const result = await db.findOneAndUpdate(
+      { _id: new ObjectId(boardId) },
+      { $push: { ownerIds: { $each: [], $position: 0 } }, $pull: { memberIds: new ObjectId(userId) } },
+      { returnDocument: 'after' }
+    )
+
+    // Tạo vai trò mới cho userId
+    const newRoleData = generateRole(userId, ROLE_NAME.ADMIN)
+
+    // Cập nhật vai trò và quyền của userId trong usersRole
+    await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .updateOne(
+        {
+          _id: new ObjectId(boardId),
+          'usersRole.userId': new ObjectId(userId) // Tìm userId trong mảng usersRole
+        },
+        {
+          $set: { 'usersRole.$': newRoleData } // Cập nhật vai trò và quyền mới
+        }
+      )
+
+    return result.value // Trả về giá trị sau khi cập nhật
+  } catch (error) {
+    throw new Error(error)
+  }
+}
 export const boardModel = {
   BOARD_COLLECTION_NAME,
   BOARD_COLLECTION_SCHEMA,
@@ -768,7 +819,8 @@ export const boardModel = {
   archiveBoard,
   getArchivedBoards,
   unArchiveBoard,
-  leaveBoard
+  leaveBoard,
+  unshiftOwnerIds
 }
 
 //board 6710c1dea34456a8d94373bc
