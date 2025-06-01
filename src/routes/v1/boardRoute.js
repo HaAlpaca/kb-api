@@ -14,12 +14,12 @@ Router.route('/archived').get(authMiddleware.isAuthorize, boardController.getArc
 Router.route('/:id')
   .get(
     authMiddleware.isAuthorize,
-    // rbacMiddleware.isValidPermission([PERMISSION_NAME.READ_BOARD]),
+    rbacMiddleware.isValidPermission([PERMISSION_NAME.READ_BOARD]),
     boardController.getDetails
   )
   .put(
     authMiddleware.isAuthorize,
-    rbacMiddleware.isValidPermission([PERMISSION_NAME.UPDATE_BOARD]),
+    rbacMiddleware.isValidPermission([PERMISSION_NAME.EDIT_COLUMN]),
     boardValidation.update,
     boardController.update
   ) // update

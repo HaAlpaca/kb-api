@@ -19,6 +19,8 @@ import { labelSocket } from './sockets/labelSocket'
 import { attachmentSocket } from './sockets/attachmentSocket'
 import { WATCH_AUTOMATION } from './watchers/watchCards'
 import { setSocketInstance } from './sockets/socketInstance'
+import { START_OVERDUE_WATCHER } from './watchers/overdueWatcher'
+import { checklistSocket } from './sockets/checklistSocket'
 
 const START_SERVER = () => {
   const app = express()
@@ -49,6 +51,18 @@ const START_SERVER = () => {
   io.on('connection', socket => {
     // console.log('A client connected:', socket.id)
     inviteUserToBoardSocket(socket)
+
+    // socket join room
+    socket.on('JOIN_BOARD', boardId => {
+      socket.join(boardId)
+      console.log(`User ${socket.id} joined board room: ${boardId}`)
+    })
+
+    socket.on('LEAVE_BOARD', boardId => {
+      socket.leave(boardId)
+      console.log(`User ${socket.id} left board room: ${boardId}`)
+    })
+
     // label socket
     labelSocket.Delete(socket)
     labelSocket.Create(socket)
@@ -70,6 +84,10 @@ const START_SERVER = () => {
     columnSocket.Create(socket)
     columnSocket.Delete(socket)
     columnSocket.Move(socket)
+    // checklist socket
+    checklistSocket.Create(socket)
+    checklistSocket.Delete(socket)
+    checklistSocket.Update(socket)
   })
   if (env.BUILD_MODE === 'production') {
     // dùng server.listen vì server bọc app rồi
@@ -81,9 +99,7 @@ const START_SERVER = () => {
     // dùng server.listen vì server bọc app rồi
     server.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
       // eslint-disable-next-line no-console
-      console.log(
-        `DEV: Server is running at http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}/`
-      )
+      console.log(`DEV: Server is running at http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}/`)
     })
   }
 
@@ -100,7 +116,9 @@ const START_SERVER = () => {
     await CONNECT_DB()
     console.log('Connect to MongoDB Cloud Atlas!')
     WATCH_AUTOMATION()
+    // START_OVERDUE_WATCHER()
     START_SERVER()
+
     START_CRON_JOB()
   } catch (error) {
     console.error(error)

@@ -5,6 +5,7 @@ import { env } from '~/config/environment'
 export const WHITELIST_DOMAINS = [
   // 'http://localhost:5173'
   'https://trello-web-dun.vercel.app',
+  'https://kb-web-yrx5.vercel.app/',
   'http://localhost:4173'
   // da luon luon cho phep
   //more
@@ -82,4 +83,3 @@ export const PERMISSION_NAME = {
   // CARD ASSIGN
   UPDATE_CARD_ASSIGN: 'update_card_assign'
 }
-

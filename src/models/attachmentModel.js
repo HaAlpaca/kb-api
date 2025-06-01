@@ -16,7 +16,7 @@ const ATTACHMENT_COLLECTION_SCHEMA = Joi.object({
   _destroy: Joi.boolean().default(false)
 })
 // chi dinh nhung field khong dc cap nhat
-const INVALID_UPDATE_FIELDS = ['_id', 'createdAt', 'link']
+const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
 
 const validateBeforeCreate = async data => {
   return ATTACHMENT_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
@@ -47,11 +47,7 @@ const getCardAttachments = async cardId => {
       .collection(cardModel.CARD_COLLECTION_NAME)
       .findOne({ _id: new ObjectId(cardId) })
 
-    if (
-      !card ||
-      !card.cardAttachmentIds ||
-      card.cardAttachmentIds.length === 0
-    ) {
+    if (!card || !card.cardAttachmentIds || card.cardAttachmentIds.length === 0) {
       return { attachments: [], totalAttachments: 0 }
     }
 
@@ -63,9 +59,7 @@ const getCardAttachments = async cardId => {
       .toArray()
 
     return {
-      attachments: attachments.map(label =>
-        pick(label, ['_id', 'name', 'link', 'type', 'size', 'createdAt'])
-      )
+      attachments: attachments.map(label => pick(label, ['_id', 'name', 'link', 'type', 'size', 'createdAt']))
     }
   } catch (error) {
     throw new Error(error)
@@ -80,9 +74,7 @@ const createNew = async (userId, data) => {
       ...validData,
       ownerId: new ObjectId(userId)
     }
-    const createdAttachment = await GET_DB()
-      .collection(ATTACHMENT_COLLECTION_NAME)
-      .insertOne(newAttachmentToAdd)
+    const createdAttachment = await GET_DB().collection(ATTACHMENT_COLLECTION_NAME).insertOne(newAttachmentToAdd)
     return createdAttachment
   } catch (error) {
     throw new Error(error)
@@ -104,16 +96,11 @@ const update = async (attachmentId, updateData) => {
   try {
     // loc field khong cho phep update
     Object.keys(updateData).forEach(fieldName => {
-      if (INVALID_UPDATE_FIELDS.includes(fieldName))
-        delete updateData[fieldName]
+      if (INVALID_UPDATE_FIELDS.includes(fieldName)) delete updateData[fieldName]
     })
     const result = await GET_DB()
       .collection(ATTACHMENT_COLLECTION_NAME)
-      .findOneAndUpdate(
-        { _id: new ObjectId(attachmentId) },
-        { $set: updateData },
-        { returnDocument: 'after' }
-      )
+      .findOneAndUpdate({ _id: new ObjectId(attachmentId) }, { $set: updateData }, { returnDocument: 'after' })
     return result
   } catch (error) {
     throw new Error(error)
@@ -150,10 +137,7 @@ const pullCardAttachmentIds = async labelId => {
   try {
     const result = await GET_DB()
       .collection(cardModel.CARD_COLLECTION_NAME)
-      .updateMany(
-        { cardAttachmentIds: new ObjectId(labelId) },
-        { $pull: { cardAttachmentIds: new ObjectId(labelId) } }
-      )
+      .updateMany({ cardAttachmentIds: new ObjectId(labelId) }, { $pull: { cardAttachmentIds: new ObjectId(labelId) } })
 
     return result
   } catch (error) {

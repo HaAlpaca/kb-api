@@ -16,8 +16,8 @@ Router.route('/').post(
 Router.route('/:id')
   // .get(authMiddleware.isAuthorize, labelController.getBoardLabels)
   .put(
-    rbacMiddleware.isValidPermission([PERMISSION_NAME.UPDATE_CARD]),
     authMiddleware.isAuthorize,
+    rbacMiddleware.isValidPermission([PERMISSION_NAME.UPDATE_CARD]),
     attachmentValidation.update,
     attachmentController.update
   ) // update

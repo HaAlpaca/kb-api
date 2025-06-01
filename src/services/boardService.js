@@ -234,7 +234,7 @@ const getBoardAnalytics = async (userId, boardId) => {
 const getRolePermissions = async (userId, boardId) => {
   try {
     const rolePermissions = await boardModel.getRolePermissions(userId, boardId)
-    console.log('rolePermissions in service: ', rolePermissions)
+    // console.log('rolePermissions in service: ', rolePermissions)
     if (rolePermissions) {
       return {
         ...rolePermissions,
@@ -258,9 +258,6 @@ const updateUserRole = async (userId, boardId, role) => {
         userId: rolePermissions.userId.toString()
       }
     } else {
-      if (role === ROLE_NAME.ADMIN) {
-        result = await boardModel.updateUserRole(userId, boardId, role)
-      }
       if (role === ROLE_NAME.MODERATOR) {
         result = await boardModel.updateUserRole(userId, boardId, role)
       }
@@ -334,8 +331,24 @@ const archiveBoard = async (userId, boardId) => {
   }
 }
 
-const leaveBoard = async (userId, boardId) => {
+const leaveBoard = async (userId, boardId, newAdminId) => {
   try {
+    const boardQuery = await boardModel.findOneById(boardId)
+
+    // Kiểm tra nếu người dùng là Owner[0]
+    if (boardQuery?.ownerIds[0]?.toString() === userId) {
+      if (!newAdminId) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'New admin must be specified when the current owner leaves.')
+      }
+
+      // Chỉ định thành viên mới làm Owner[0]
+      await boardModel.unshiftOwnerIds(boardId, newAdminId)
+      await boardModel.leaveBoard(userId, boardId)
+    } else {
+      // Nếu không phải Owner[0], chỉ cần xóa người dùng khỏi board
+      await boardModel.leaveBoard(userId, boardId)
+    }
+
     // Lấy tất cả các card thuộc board
     const cards = await cardModel.find({ boardId: new ObjectId(boardId) })
     const cardIds = cards.map(card => card._id)
@@ -349,10 +362,7 @@ const leaveBoard = async (userId, boardId) => {
       { $pull: { assignedUserIds: new ObjectId(userId) } }
     )
 
-    // Cuối cùng, xóa người dùng khỏi board
-    const board = await boardModel.leaveBoard(userId, boardId)
-
-    return board
+    return { message: 'User has left the board successfully.' }
   } catch (error) {
     throw error
   }

@@ -1,0 +1,39 @@
+@startuml
+!theme amiga
+
+actor "User" as U
+actor "Admin" as A
+
+rectangle "Trello Clone System" {
+  
+  (Đăng ký) as UC1
+  (Đăng nhập) as UC2
+  (Tạo Workspace) as UC3
+  (Mời thành viên) as UC4
+  (Tạo Board) as UC5
+  (Tạo Column) as UC6
+  (Tạo Card) as UC7
+  (Kéo thả Card) as UC8
+  (Chỉnh sửa Thẻ) as UC9
+  (Gán người phụ trách) as UC10
+  (Xem/Chỉnh sửa hồ sơ) as UC11
+  (Nhận thông báo) as UC12
+
+  (Xóa Board bất kỳ) as UC13
+
+  U --> UC1
+  U --> UC2
+  U --> UC3
+  U --> UC4
+  U --> UC5
+  U --> UC6
+  U --> UC7
+  U --> UC8
+  U --> UC9
+  U --> UC10
+  U --> UC11
+  U --> UC12
+
+  A --> UC13
+}
+@enduml

@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import { GET_DB } from '~/config/mongodb'
 import { ObjectId } from 'mongodb'
+import { getSocketInstance } from '~/sockets/socketInstance'
 
 export const WATCH_AUTOMATION = async () => {
   try {
@@ -28,7 +29,10 @@ export const WATCH_AUTOMATION = async () => {
 
           // Xử lý các trigger
           await handleCompleteTrigger(cardsCollection, board, card, updatedFields)
-          await handleOverdueTrigger(cardsCollection, board, card)
+          // setInterval(() => {
+          //   handleOverdueTrigger(cardsCollection, board, card)
+          // }, 1000) // Kiểm tra overdue mỗi 1s
+          // await handleOverdueTrigger(cardsCollection, board, card)
         }
       } catch (error) {
         console.error('Error processing change event:', error)
@@ -63,14 +67,32 @@ async function getBoardById(boardsCollection, boardId) {
 
 // Xử lý trigger khi card hoàn thành
 async function handleCompleteTrigger(cardsCollection, board, card, updatedFields) {
+  const io = getSocketInstance()
+
   if (updatedFields.isComplete === true && board.isCompleteCardTrigger) {
     const completeColumnId = board.completeCardTriggerColumnId
     if (completeColumnId) {
+      // Xóa card khỏi cardOrderIds của column hiện tại
+      await GET_DB()
+        .collection('columns')
+        .updateOne({ _id: new ObjectId(card.columnId) }, { $pull: { cardOrderIds: new ObjectId(card._id) } })
+
+      // Thêm card vào cardOrderIds của column mới
+      await GET_DB()
+        .collection('columns')
+        .updateOne({ _id: new ObjectId(completeColumnId) }, { $push: { cardOrderIds: new ObjectId(card._id) } })
+
+      // Cập nhật columnId của card
       await cardsCollection.updateOne(
         { _id: new ObjectId(card._id) },
         { $set: { columnId: new ObjectId(completeColumnId) } }
       )
-      console.log(`Card ${card._id} moved to column ${completeColumnId} (Complete Trigger)`)
+
+      console.log(`Card ${card._id} moved to colzumn ${completeColumnId} (Complete Trigger)`)
+
+      io.to(card.boardId.toString()).emit('BE_UPDATE_CARD', {
+        card
+      })
     } else {
       console.warn(`Complete trigger is enabled, but no column ID is set for board ${board._id}.`)
     }
@@ -79,15 +101,32 @@ async function handleCompleteTrigger(cardsCollection, board, card, updatedFields
 
 // Xử lý trigger khi card hết hạn
 async function handleOverdueTrigger(cardsCollection, board, card) {
+  const io = getSocketInstance()
   const now = new Date()
-  if (card.dueDate && new Date(card.dueDate) < now && board.isOverdueCardTrigger) {
+  if (card.dueDate && new Date(card.dueDate) < now && board.isOverdueCardTrigger && card.isComplete !== true) {
     const overdueColumnId = board.overdueCardColumnId
     if (overdueColumnId) {
+      // Xóa card khỏi cardOrderIds của column hiện tại
+      await GET_DB()
+        .collection('columns')
+        .updateOne({ _id: new ObjectId(card.columnId) }, { $pull: { cardOrderIds: new ObjectId(card._id) } })
+
+      // Thêm card vào cardOrderIds của column mới
+      await GET_DB()
+        .collection('columns')
+        .updateOne({ _id: new ObjectId(overdueColumnId) }, { $push: { cardOrderIds: new ObjectId(card._id) } })
+
+      // Cập nhật columnId của card
       await cardsCollection.updateOne(
         { _id: new ObjectId(card._id) },
         { $set: { columnId: new ObjectId(overdueColumnId) } }
       )
+
       console.log(`Card ${card._id} moved to column ${overdueColumnId} (Overdue Trigger)`)
+
+      io.to(card.boardId.toString()).emit('BE_UPDATE_CARD', {
+        card
+      })
     } else {
       console.warn(`Overdue trigger is enabled, but no column ID is set for board ${board._id}.`)
     }
