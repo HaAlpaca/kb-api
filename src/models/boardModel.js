@@ -653,6 +653,14 @@ const getDetailsBoardAnalytics = async (userId, boardId) => {
         { $match: { $and: queryCondition } },
         {
           $lookup: {
+            from: columnModel.COLUMN_COLLECTION_NAME,
+            localField: '_id',
+            foreignField: 'boardId',
+            as: 'columns'
+          }
+        },
+        {
+          $lookup: {
             from: cardModel.CARD_COLLECTION_NAME,
             let: { boardId: '$_id' },
             pipeline: [

@@ -19,7 +19,6 @@ import { labelSocket } from './sockets/labelSocket'
 import { attachmentSocket } from './sockets/attachmentSocket'
 import { WATCH_AUTOMATION } from './watchers/watchCards'
 import { setSocketInstance } from './sockets/socketInstance'
-import { START_OVERDUE_WATCHER } from './watchers/overdueWatcher'
 import { checklistSocket } from './sockets/checklistSocket'
 
 const START_SERVER = () => {

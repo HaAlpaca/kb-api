@@ -191,12 +191,43 @@ const getBoardAnalytics = async (userId, boardId) => {
 
       const totalIncompleteChecklistItems = totalChecklistItems - totalCompletedChecklistItems
 
-      // Thống kê số card theo từng cột
-      const cardsByColumn = board.columns?.map(column => ({
-        columnId: column._id,
-        columnTitle: column.title,
-        totalCards: board.cards?.filter(card => card.columnId.equals(column._id)).length || 0
-      }))
+      // Thống kê tỷ lệ hoàn thành của từng checklist
+      const checklistsCompletion = board.cards?.flatMap(card => {
+        return (
+          card.checklists?.map(checklist => {
+            const totalItems = checklist.items?.length || 0
+            const completedItems = checklist.items?.filter(item => item.isCompleted === true).length || 0
+            const completionRate = totalItems > 0 ? (completedItems / totalItems) * 100 : 0
+
+            return {
+              checklistId: checklist._id,
+              checklistTitle: checklist.title,
+              totalItems,
+              completedItems,
+              incompleteItems: totalItems - completedItems,
+              completionRate: completionRate.toFixed(2) // Làm tròn đến 2 chữ số thập phân
+            }
+          }) || []
+        )
+      })
+
+      // Thống kê số card theo từng cột và trạng thái hoàn thành
+      const cardsByColumn = board.columns?.map(column => {
+        const columnCards = column.cardOrderIds
+          .map(cardId => board.cards?.find(card => card._id.equals(cardId)))
+          .filter(card => card) // Loại bỏ các giá trị null hoặc undefined
+
+        const completedCards = columnCards.filter(card => card.isComplete === true).length
+        const incompleteCards = columnCards.length - completedCards
+
+        return {
+          columnId: column._id,
+          columnTitle: column.title,
+          totalCards: columnCards.length,
+          completedCards,
+          incompleteCards
+        }
+      })
 
       // Thống kê chi tiết theo từng thành viên
       const memberAnalytics = allMembers.map(member => {
@@ -221,6 +252,7 @@ const getBoardAnalytics = async (userId, boardId) => {
         totalChecklistItems,
         totalCompletedChecklistItems,
         totalIncompleteChecklistItems,
+        checklistsCompletion,
         cardsByColumn,
         memberAnalytics
       }
