@@ -10,6 +10,7 @@ import { BrevoProvider } from '~/providers/BrevoProvider'
 import { env } from '~/config/environment'
 import { JwtProvider } from '~/providers/JwtProvider'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
+import { cardModel } from '~/models/cardModel'
 
 const createNew = async reqBody => {
   try {
@@ -152,6 +153,11 @@ const update = async (userId, reqBody, userAvatarFile) => {
     } else {
       // update thong tin chung
       updatedUser = await userModel.update(userId, reqBody)
+      if (reqBody.displayName) {
+        console.log('Update displayName: ', reqBody.displayName)
+        console.log('UserId: ', userId)
+        await cardModel.updateCommentDisplayName(userId, reqBody.displayName)
+      }
     }
 
     return pickUser(updatedUser)

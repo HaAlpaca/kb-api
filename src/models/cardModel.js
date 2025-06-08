@@ -344,6 +344,25 @@ const find = async filter => {
   }
 }
 
+const updateCommentDisplayName = async (userId, newDisplayName) => {
+  try {
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .updateMany(
+        { 'comments.userId': userId },
+        {
+          $set: { 'comments.$[elem].userDisplayName': newDisplayName }
+        },
+        {
+          arrayFilters: [{ 'elem.userId': userId }]
+        }
+      )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const cardModel = {
   CARD_COLLECTION_NAME,
   CARD_COLLECTION_SCHEMA,
@@ -360,5 +379,6 @@ export const cardModel = {
   updateMembers,
   updateLabels,
   updateAttachments,
-  updateChecklists
+  updateChecklists,
+  updateCommentDisplayName
 }

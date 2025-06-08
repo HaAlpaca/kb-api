@@ -67,7 +67,7 @@ async function getBoardById(boardsCollection, boardId) {
 async function handleCompleteTrigger(cardsCollection, board, card, updatedFields) {
   const io = getSocketInstance()
 
-  if (updatedFields.isComplete === true && board.isCompleteCardTrigger) {
+  if (updatedFields.isComplete === true && board.isCompleteCardTrigger === true) {
     const completeColumnId = board.completeCardTriggerColumnId
     if (completeColumnId) {
       // Xóa card khỏi cardOrderIds của column hiện tại

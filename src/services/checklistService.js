@@ -3,21 +3,16 @@ import { checklistModel } from '~/models/checklistModel'
 import { StatusCodes } from 'http-status-codes'
 import ApiError from '~/utils/ApiError'
 import { actionModel } from '~/models/actionModel'
-import {
-  CARD_MEMBER_ACTION,
-  ACTION_TYPES,
-  WEBSITE_DOMAIN,
-  OWNER_ACTION_TARGET
-} from '~/utils/constants'
+import { CARD_MEMBER_ACTION, ACTION_TYPES, WEBSITE_DOMAIN, OWNER_ACTION_TARGET } from '~/utils/constants'
 import { userModel } from '~/models/userModel'
 import { BrevoProvider } from '~/providers/BrevoProvider'
 import { ObjectId } from 'mongodb'
-
+import { cardModel } from '~/models/cardModel'
+import { getSocketInstance } from '~/sockets/socketInstance'
 const getDetails = async (userId, checklistId) => {
   try {
     const checklist = await checklistModel.getDetails(userId, checklistId)
-    if (!checklist)
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Checklist not found!')
+    if (!checklist) throw new ApiError(StatusCodes.NOT_FOUND, 'Checklist not found!')
     return checklist
   } catch (error) {
     throw error
@@ -31,15 +26,10 @@ const createNew = async (userId, reqBody) => {
     }
 
     const createdChecklist = await checklistModel.createNew(newChecklist)
-    const getNewChecklist = await checklistModel.findOneById(
-      createdChecklist.insertedId
-    )
+    const getNewChecklist = await checklistModel.findOneById(createdChecklist.insertedId)
     if (getNewChecklist) {
       // Cập nhật lại danh sách checklist trong card
-      await checklistModel.pushCardChecklistIds(
-        getNewChecklist.cardId,
-        getNewChecklist._id
-      )
+      await checklistModel.pushCardChecklistIds(getNewChecklist.cardId, getNewChecklist._id)
     }
     return getNewChecklist
   } catch (error) {
@@ -50,8 +40,7 @@ const createNew = async (userId, reqBody) => {
 const update = async (userInfo, checklistId, reqBody) => {
   try {
     const checklist = await checklistModel.findOneById(checklistId)
-    if (!checklist)
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Checklist not found!')
+    if (!checklist) throw new ApiError(StatusCodes.NOT_FOUND, 'Checklist not found!')
 
     let updatedChecklist = {}
     const updateData = {
@@ -60,10 +49,7 @@ const update = async (userInfo, checklistId, reqBody) => {
     }
 
     if (reqBody.createCheckItem) {
-      updatedChecklist = await checklistModel.addCheckItem(
-        checklistId,
-        reqBody.createCheckItem
-      )
+      updatedChecklist = await checklistModel.addCheckItem(checklistId, reqBody.createCheckItem)
     } else if (reqBody.updateCheckItem) {
       updatedChecklist = await checklistModel.updateCheckItem(
         checklistId,
@@ -71,22 +57,38 @@ const update = async (userInfo, checklistId, reqBody) => {
         reqBody.updateCheckItem
       )
     } else if (reqBody.deleteCheckItemId) {
-      updatedChecklist = await checklistModel.deleteCheckItem(
-        checklistId,
-        reqBody.deleteCheckItemId
-      )
+      updatedChecklist = await checklistModel.deleteCheckItem(checklistId, reqBody.deleteCheckItemId)
     } else if (reqBody.updateCheckItemOrder) {
-      updatedChecklist = await checklistModel.reorderCheckItems(
-        checklistId,
-        reqBody.updateCheckItemOrder
-      )
+      updatedChecklist = await checklistModel.reorderCheckItems(checklistId, reqBody.updateCheckItemOrder)
     } else if (reqBody.updateIncomingAssignedUser) {
       const incoming = reqBody.updateIncomingAssignedUser
-      updatedChecklist = await checklistModel.updateIncomingAssignedUser(
-        checklistId,
-        incoming
-      )
+      updatedChecklist = await checklistModel.updateIncomingAssignedUser(checklistId, incoming)
       if (incoming.action === CARD_MEMBER_ACTION.ADD) {
+        const checklist = await checklistModel.findOneById(checklistId)
+        const cardOwnerChecklist = await cardModel.findOneById(checklist.cardId.toString())
+        // console.log(cardOwnerChecklist)
+        if (!cardOwnerChecklist.memberIds.includes(incoming.userId)) {
+          await cardModel.updateMembers(checklist.cardId.toString(), incoming)
+
+          // emit
+
+          const createdAction = await actionModel.createNew({
+            assignerId: userInfo._id,
+            assigneeId: incoming.userId,
+            boardId: cardOwnerChecklist.boardId.toString(),
+            type: ACTION_TYPES.ASSIGN_CARD,
+            metadata: {
+              ownerTargetType: OWNER_ACTION_TARGET.COLUMN,
+              ownerTargetId: cardOwnerChecklist.columnId.toString(),
+              targetId: cardOwnerChecklist._id.toString(),
+              dueDate: cardOwnerChecklist.dueDate ? cardOwnerChecklist.dueDate : null
+            }
+          })
+          const action = await actionModel.findOneById(createdAction.insertedId)
+          // Phát sự kiện socket sau khi cập nhật card
+          const io = getSocketInstance()
+          io.emit('BE_USER_RECEIVED_ACTION', action)
+        }
         await actionModel.createNew({
           assignerId: userInfo._id,
           assigneeId: incoming.userId,
@@ -95,6 +97,7 @@ const update = async (userInfo, checklistId, reqBody) => {
           metadata: {
             ownerTargetType: OWNER_ACTION_TARGET.CARD,
             ownerTargetId: incoming.cardId,
+            ownerTargetName: cardOwnerChecklist.title,
             targetId: checklistId,
             dueDate: updatedChecklist.dueDate ? updatedChecklist.dueDate : null
           }
@@ -121,25 +124,34 @@ const update = async (userInfo, checklistId, reqBody) => {
       updatedChecklist = await checklistModel.update(checklistId, updateData)
       // console.log(updatedChecklist)
       if (updateData.dueDate) {
-        const queryCondition = [
-          {
-            'metadata.targetId': updatedChecklist._id.toString()
-          }
-        ]
-        actionModel.findAndUpdateMany(queryCondition, {
-          'metadata.dueDate': updateData.dueDate,
-          updatedAt: Date.now()
-        })
+        const checklist = await checklistModel.findOneById(checklistId)
+        const cardOwnerChecklist = await cardModel.findOneById(checklist.cardId.toString())
+        for (const item of checklist.assignedUserIds) {
+          const action = await actionModel.createNew({
+            assignerId: userInfo._id,
+            assigneeId: item.toString(),
+            boardId: cardOwnerChecklist.boardId.toString(),
+            type: ACTION_TYPES.UPDATE_DUEDATE,
+            metadata: {
+              ownerTargetType: OWNER_ACTION_TARGET.CARD,
+              ownerTargetId: checklist.cardId.toString(),
+              ownerTargetName: cardOwnerChecklist.title,
+              targetId: checklistId,
+              targetType: 'checklist',
+              targetName: checklist.title,
+              dueDate: updateData.dueDate
+            }
+          })
+
+          const io = getSocketInstance()
+          io.emit('BE_USER_RECEIVED_ACTION', action)
+        }
       }
     }
 
     // Kiểm tra trạng thái hoàn thành của checklist
-    const updatedChecklistDetails = await checklistModel.findOneById(
-      checklistId
-    )
-    const allItemsCompleted = updatedChecklistDetails.items.every(
-      item => item.isCompleted === true
-    )
+    const updatedChecklistDetails = await checklistModel.findOneById(checklistId)
+    const allItemsCompleted = updatedChecklistDetails.items.every(item => item.isCompleted === true)
 
     // Cập nhật trạng thái isCompleted của checklist
     await checklistModel.update(checklistId, {
@@ -156,8 +168,7 @@ const update = async (userInfo, checklistId, reqBody) => {
 const deleteChecklist = async checklistId => {
   try {
     const targetChecklist = await checklistModel.findOneById(checklistId)
-    if (!targetChecklist)
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Checklist not found!')
+    if (!targetChecklist) throw new ApiError(StatusCodes.NOT_FOUND, 'Checklist not found!')
     // pull checklistId vao cardChecklistIds
     await checklistModel.pullCardChecklistIds(checklistId)
     // xoa checklist
@@ -175,8 +186,7 @@ const deleteChecklist = async checklistId => {
 const addCheckItem = async (checklistId, checkItemData) => {
   try {
     const checklist = await checklistModel.getDetailsById(checklistId)
-    if (!checklist)
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Checklist not found!')
+    if (!checklist) throw new ApiError(StatusCodes.NOT_FOUND, 'Checklist not found!')
 
     const newCheckItem = {
       ...checkItemData,
@@ -185,10 +195,7 @@ const addCheckItem = async (checklistId, checkItemData) => {
       isCompleted: false // Mặc định item mới chưa hoàn thành
     }
 
-    const updatedChecklist = await checklistModel.addCheckItem(
-      checklistId,
-      newCheckItem
-    )
+    const updatedChecklist = await checklistModel.addCheckItem(checklistId, newCheckItem)
 
     // Đảm bảo checklist không được đánh dấu là hoàn thành
     await checklistModel.update(checklistId, {
@@ -204,19 +211,12 @@ const addCheckItem = async (checklistId, checkItemData) => {
 
 const updateCheckItem = async (checklistId, itemId, checkItemData) => {
   try {
-    const updatedCheckItem = await checklistModel.updateCheckItem(
-      checklistId,
-      itemId,
-      checkItemData
-    )
-    if (!updatedCheckItem)
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Check item not found!')
+    const updatedCheckItem = await checklistModel.updateCheckItem(checklistId, itemId, checkItemData)
+    if (!updatedCheckItem) throw new ApiError(StatusCodes.NOT_FOUND, 'Check item not found!')
 
     // Kiểm tra trạng thái hoàn thành của checklist
     const checklist = await checklistModel.findOneById(checklistId)
-    const allItemsCompleted = checklist.items.every(
-      item => item.isCompleted === true
-    )
+    const allItemsCompleted = checklist.items.every(item => item.isCompleted === true)
 
     // Cập nhật trạng thái isCompleted của checklist
     await checklistModel.update(checklistId, {
@@ -232,18 +232,12 @@ const updateCheckItem = async (checklistId, itemId, checkItemData) => {
 
 const deleteCheckItem = async (checklistId, itemId) => {
   try {
-    const deletedCheckItem = await checklistModel.deleteCheckItem(
-      checklistId,
-      itemId
-    )
-    if (!deletedCheckItem)
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Check item not found!')
+    const deletedCheckItem = await checklistModel.deleteCheckItem(checklistId, itemId)
+    if (!deletedCheckItem) throw new ApiError(StatusCodes.NOT_FOUND, 'Check item not found!')
 
     // Kiểm tra trạng thái hoàn thành của checklist
     const checklist = await checklistModel.findOneById(checklistId)
-    const allItemsCompleted = checklist.items.every(
-      item => item.isCompleted === true
-    )
+    const allItemsCompleted = checklist.items.every(item => item.isCompleted === true)
 
     // Cập nhật trạng thái isCompleted của checklist
     await checklistModel.update(checklistId, {
@@ -259,15 +253,8 @@ const deleteCheckItem = async (checklistId, itemId) => {
 
 const updateCheckItemOrder = async (checklistId, itemOrder) => {
   try {
-    const updatedOrder = await checklistModel.updateCheckItemOrder(
-      checklistId,
-      itemOrder
-    )
-    if (!updatedOrder)
-      throw new ApiError(
-        StatusCodes.NOT_FOUND,
-        'Checklist or check item not found!'
-      )
+    const updatedOrder = await checklistModel.updateCheckItemOrder(checklistId, itemOrder)
+    if (!updatedOrder) throw new ApiError(StatusCodes.NOT_FOUND, 'Checklist or check item not found!')
     return updatedOrder
   } catch (error) {
     throw error

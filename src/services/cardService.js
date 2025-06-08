@@ -8,6 +8,7 @@ import { attachmentService } from './attachmentService'
 import { ACTION_TYPES, CARD_MEMBER_ACTION, OWNER_ACTION_TARGET } from '~/utils/constants'
 import { actionModel } from '~/models/actionModel'
 import { getSocketInstance } from '~/sockets/socketInstance'
+import { boardModel } from '~/models/boardModel'
 
 const getDetails = async (userId, cardId) => {
   try {
@@ -96,6 +97,29 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
       updatedCard = await cardModel.updateAttachments(cardId, updateData.updateAttachments)
     } else if (updateData.updateDueDate) {
       updatedCard = await cardModel.updateDueDate(cardId, updateData.updateDueDate)
+      //  update due date action
+      const card = await cardModel.findOneById(cardId)
+      const board = await boardModel.findOneById(card.boardId)
+      for (const item of card.memberIds) {
+        const action = await actionModel.createNew({
+          assignerId: userInfo._id,
+          assigneeId: item.toString(),
+          boardId: card.boardId.toString(),
+          type: ACTION_TYPES.UPDATE_DUEDATE,
+          metadata: {
+            ownerTargetType: OWNER_ACTION_TARGET.BOARD,
+            ownerTargetId: card.boardId.toString(),
+            ownerTargetName: board.title,
+            targetId: cardId,
+            targetType: 'card',
+            targetName: card.title,
+            dueDate: updateData.updateDueDate
+          }
+        })
+
+        const io = getSocketInstance()
+        io.emit('BE_USER_RECEIVED_ACTION', action)
+      }
     } else if (updateData.updateChecklists) {
       updatedCard = await cardModel.updateChecklists(cardId, updateData.updateChecklists)
     } else {
