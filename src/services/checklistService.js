@@ -6,7 +6,6 @@ import { actionModel } from '~/models/actionModel'
 import { CARD_MEMBER_ACTION, ACTION_TYPES, WEBSITE_DOMAIN, OWNER_ACTION_TARGET } from '~/utils/constants'
 import { userModel } from '~/models/userModel'
 import { BrevoProvider } from '~/providers/BrevoProvider'
-import { ObjectId } from 'mongodb'
 import { cardModel } from '~/models/cardModel'
 import { getSocketInstance } from '~/sockets/socketInstance'
 const getDetails = async (userId, checklistId) => {
@@ -89,7 +88,7 @@ const update = async (userInfo, checklistId, reqBody) => {
           const io = getSocketInstance()
           io.emit('BE_USER_RECEIVED_ACTION', action)
         }
-        await actionModel.createNew({
+        const action = await actionModel.createNew({
           assignerId: userInfo._id,
           assigneeId: incoming.userId,
           boardId: incoming.boardId,
@@ -99,26 +98,24 @@ const update = async (userInfo, checklistId, reqBody) => {
             ownerTargetId: incoming.cardId,
             ownerTargetName: cardOwnerChecklist.title,
             targetId: checklistId,
+            targetName: checklist.title,
             dueDate: updatedChecklist.dueDate ? updatedChecklist.dueDate : null
           }
         })
+
+        const io = getSocketInstance()
+        io.emit('BE_USER_RECEIVED_ACTION', action)
         // send email
         // const getAssignee = await userModel.findOneById(userInfo._id)
         // const getAssigner = await userModel.findOneById(incoming.userId)
-        // const taskLink = `${WEBSITE_DOMAIN}/boards/${
-        //   incoming.boardId
-        // }?cardModal=${updatedChecklist.cardId.toString()}`
+        // const taskLink = `${WEBSITE_DOMAIN}/boards/${incoming.boardId}?cardModal=${updatedChecklist.cardId.toString()}`
         // const customSubject = `KbWorkspace: ${getAssigner.displayName} assigned a new task to you!`
         // const htmlContent = `
         //           <h3>Go to your task</h3>
         //           <h3>${taskLink}</h3>
         //           <h3>Sincerely,<br/> - HaAlpaca - </h3>
         //       `
-        // await BrevoProvider.sendEmail(
-        //   getAssignee.email,
-        //   customSubject,
-        //   htmlContent
-        // )
+        // await BrevoProvider.sendEmail(getAssignee.email, customSubject, htmlContent)
       }
     } else {
       updatedChecklist = await checklistModel.update(checklistId, updateData)

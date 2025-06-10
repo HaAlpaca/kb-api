@@ -5,7 +5,7 @@ import { userModel } from '~/models/userModel'
 import ApiError from '~/utils/ApiError'
 import { BOARD_INVITATION_STATUS, INVITATION_TYPES } from '~/utils/constants'
 import { pickUser } from '~/utils/formatters'
-
+import { getSocketInstance } from '~/sockets/socketInstance'
 /* eslint-disable no-useless-catch */
 const createNewBoardInvitation = async (reqBody, inviterId) => {
   try {
@@ -17,10 +17,7 @@ const createNewBoardInvitation = async (reqBody, inviterId) => {
     const board = await boardModel.findOneById(reqBody.boardId)
 
     if (!inviter || !invitee || !board)
-      throw new ApiError(
-        StatusCodes.NOT_FOUND,
-        'Inviter, invitee or board not found!'
-      )
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Inviter, invitee or board not found!')
 
     const newInvitationData = {
       inviterId,
@@ -32,12 +29,8 @@ const createNewBoardInvitation = async (reqBody, inviterId) => {
       }
     }
 
-    const createdInvitation = await invitationModel.createNewBoardInvitation(
-      newInvitationData
-    )
-    const getInvitation = await invitationModel.findOneById(
-      createdInvitation.insertedId.toString()
-    )
+    const createdInvitation = await invitationModel.createNewBoardInvitation(newInvitationData)
+    const getInvitation = await invitationModel.findOneById(createdInvitation.insertedId.toString())
 
     // data cho fe xu li
     const resInvitation = {
@@ -74,23 +67,13 @@ const updateBoardInvitation = async (userId, invitationId, status) => {
   try {
     //
     const getInvitation = await invitationModel.findOneById(invitationId)
-    if (!getInvitation)
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Invitation not found!')
+    if (!getInvitation) throw new ApiError(StatusCodes.NOT_FOUND, 'Invitation not found!')
     const boardId = getInvitation.boardInvitation.boardId
     const getBoard = await boardModel.findOneById(boardId)
     if (!getBoard) throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
-    const boardOwnerAndMemberIds = [
-      ...getBoard.ownerIds,
-      ...getBoard.memberIds
-    ].toString()
-    if (
-      status === BOARD_INVITATION_STATUS.ACCEPTED &&
-      boardOwnerAndMemberIds.includes(userId)
-    ) {
-      throw new ApiError(
-        StatusCodes.NOT_ACCEPTABLE,
-        'You are already a member of this board!'
-      )
+    const boardOwnerAndMemberIds = [...getBoard.ownerIds, ...getBoard.memberIds].toString()
+    if (status === BOARD_INVITATION_STATUS.ACCEPTED && boardOwnerAndMemberIds.includes(userId)) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'You are already a member of this board!')
     }
     // update data json object
     const updateData = {
@@ -105,12 +88,12 @@ const updateBoardInvitation = async (userId, invitationId, status) => {
       updateData // => status accecpt hay reject
     )
     // update trong board
-    if (
-      updatededInvitation.boardInvitation.status ===
-      BOARD_INVITATION_STATUS.ACCEPTED
-    ) {
+    if (updatededInvitation.boardInvitation.status === BOARD_INVITATION_STATUS.ACCEPTED) {
       await boardModel.pushMemberIds(boardId, userId)
     }
+
+    const io = getSocketInstance()
+    io.to(getBoard._id.toString()).emit('BE_UPDATE_BOARD', getBoard)
     return updatededInvitation
   } catch (error) {
     throw error

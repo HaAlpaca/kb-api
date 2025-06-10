@@ -72,6 +72,7 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
     } else if (updateData.incomingMemberInfo) {
       const incoming = updateData.incomingMemberInfo
       updatedCard = await cardModel.updateMembers(cardId, incoming)
+      const card = await cardModel.findOneById(cardId)
 
       if (updateData.incomingMemberInfo.action === CARD_MEMBER_ACTION.ADD) {
         const createdAction = await actionModel.createNew({
@@ -83,6 +84,7 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
             ownerTargetType: OWNER_ACTION_TARGET.COLUMN,
             ownerTargetId: updatedCard.columnId.toString(),
             targetId: updatedCard._id.toString(),
+            targetName: card.title,
             dueDate: updatedCard.dueDate ? updatedCard.dueDate : null
           }
         })
