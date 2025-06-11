@@ -17,7 +17,7 @@ import { START_CRON_JOB } from './config/cron'
 import { boardSocket } from './sockets/boardSocket'
 import { labelSocket } from './sockets/labelSocket'
 import { attachmentSocket } from './sockets/attachmentSocket'
-import { WATCH_AUTOMATION } from './watchers/watchCards'
+import { START_OVERDUE_WATCHER, WATCH_AUTOMATION } from './watchers/watchCards'
 import { setSocketInstance } from './sockets/socketInstance'
 import { checklistSocket } from './sockets/checklistSocket'
 
@@ -115,7 +115,7 @@ const START_SERVER = () => {
     await CONNECT_DB()
     console.log('Connect to MongoDB Cloud Atlas!')
     WATCH_AUTOMATION()
-    // START_OVERDUE_WATCHER()
+    START_OVERDUE_WATCHER()
     START_SERVER()
 
     START_CRON_JOB()

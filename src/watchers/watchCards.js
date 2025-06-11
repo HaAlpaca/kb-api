@@ -2,6 +2,24 @@
 import { GET_DB } from '~/config/mongodb'
 import { ObjectId } from 'mongodb'
 import { getSocketInstance } from '~/sockets/socketInstance'
+export const START_OVERDUE_WATCHER = () => {
+  setInterval(async () => {
+    try {
+      const db = GET_DB()
+      const boardsCollection = db.collection('boards')
+      const cardsCollection = db.collection('cards')
+
+      console.log('Interval Task: Checking overdue cards for all boards...')
+
+      const boards = await boardsCollection.find().toArray()
+      for (const board of boards) {
+        await handleOverdueTrigger(cardsCollection, board)
+      }
+    } catch (error) {
+      console.error('Error in interval overdue card check:', error)
+    }
+  }, 5000 * 2)
+}
 
 export const WATCH_AUTOMATION = async () => {
   try {
@@ -29,8 +47,6 @@ export const WATCH_AUTOMATION = async () => {
 
           // Xử lý các trigger
           await handleCompleteTrigger(cardsCollection, board, card, updatedFields)
-
-          await handleOverdueTrigger(cardsCollection, board)
         }
       } catch (error) {
         console.error('Error processing change event:', error)
@@ -116,7 +132,11 @@ async function handleOverdueTrigger(cardsCollection, board) {
       card.isComplete !== true
     ) {
       const overdueColumnId = board.overdueCardColumnId
-
+      // Nếu card đã nằm trong cột overdueColumnId, bỏ qua xử lý
+      if (card.columnId.toString() === overdueColumnId.toString()) {
+        console.log(`Card ${card._id} is already in the overdue column ${overdueColumnId}. Skipping...`)
+        continue
+      }
       if (overdueColumnId) {
         try {
           console.log(`Moving card ${card._id} to overdue column ${overdueColumnId}`)
