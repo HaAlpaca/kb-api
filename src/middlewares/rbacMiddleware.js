@@ -14,7 +14,7 @@ const isValidPermission = (requiredPermission = []) =>
       const userRole = await boardController.getRolePermissions(userId, boardId)
       // kiem tra ton tai role
       if (!userRole) {
-        return next(new ApiError(StatusCodes.FORBIDDEN, 'Permission denied.'))
+        return next(new ApiError(StatusCodes.NOT_FOUND, 'Content not found.'))
       }
       // kiểm tra xem tên role hợp lệ không
       const fullUserRole = Object.entries(ROLE_NAME).find(([, value]) => value === userRole.role)

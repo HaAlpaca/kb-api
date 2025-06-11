@@ -7,7 +7,7 @@ import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
 import { cardModel } from '~/models/cardModel'
 import { checklistModel } from '~/models/checklistModel'
-
+import { getSocketInstance } from '~/sockets/socketInstance'
 import { columnModel } from '~/models/columnModel'
 import { BOARD_TYPES, DEFAULT_ITEM_PER_PAGE, DEFAULT_PAGE, ROLE_NAME } from '~/utils/constants'
 import { ObjectId } from 'mongodb'
@@ -330,6 +330,8 @@ const joinPublicBoard = async (userId, boardId) => {
       throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'You are already a member of this board!')
     }
     const joinBoard = await boardModel.pushMemberIds(boardId, userId)
+    const io = getSocketInstance()
+    io.to(board._id.toString()).emit('BE_UPDATE_BOARD', board)
     return joinBoard
   } catch (error) {
     throw error
@@ -348,6 +350,7 @@ const unArchiveBoard = async (userId, boardId) => {
       throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'You can not unarchive this board!!')
     }
     const unArchiveBoard = await boardModel.unArchiveBoard(userId, boardId)
+
     return unArchiveBoard
   } catch (error) {
     throw error
